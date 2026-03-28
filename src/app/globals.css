@@ -1,0 +1,164 @@
+@import "tailwindcss";
+
+:root {
+  /* Slate Dark / Neon Theme */
+  --bg-base: #0f172a;               /* Slate 900 */
+  --bg-surface: #1e293b;            /* Slate 800 */
+  --bg-card: rgba(30, 41, 59, 0.5); /* Transparent Slate for Glass */
+  --bg-card-hover: rgba(30, 41, 59, 0.85);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.15);
+  --accent: #7c3aed;                /* Violet 600 */
+  --accent-light: #8b5cf6;          /* Violet 500 */
+  --accent-glow: rgba(124, 58, 237, 0.4);
+  
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+  --blue: #3b82f6;
+  
+  --text-primary: #f8fafc;          /* Slate 50 */
+  --text-secondary: #cbd5e1;        /* Slate 300 */
+  --text-muted: #64748b;            /* Slate 500 */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  background-image: 
+    radial-gradient(circle at top left, rgba(124, 58, 237, 0.05), transparent 40%),
+    radial-gradient(circle at bottom right, rgba(124, 58, 237, 0.05), transparent 40%);
+  background-attachment: fixed;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-surface); }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* Premium Glass card */
+.glass {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+.glass-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-hover:hover {
+  border-color: rgba(124, 58, 237, 0.5);
+  box-shadow: 0 10px 40px var(--accent-glow);
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #a78bfa 0%, #c084fc 50%, #e879f9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Pulse dot */
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 var(--accent-glow); }
+  70%  { box-shadow: 0 0 0 6px rgba(124,58,237,0); }
+  100% { box-shadow: 0 0 0 0 rgba(124,58,237,0); }
+}
+
+/* Funil badge Generic */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Sidebar nav link */
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-decoration: none;
+}
+.nav-link:hover { 
+  background: rgba(124,58,237,0.1); 
+  color: var(--text-primary); 
+  transform: translateX(2px);
+}
+.nav-link.active { 
+  background: rgba(124,58,237,0.15);  
+  color: var(--text-primary); 
+  border-left: 3px solid var(--accent);
+}
+
+/* Stat card shimmer */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+/* Kanban column */
+.kanban-col {
+  min-width: 270px;
+  max-width: 290px;
+  flex-shrink: 0;
+}
+
+/* Drag-over highlight */
+.kanban-col.drag-over {
+  border-color: rgba(124, 58, 237, 0.5);
+  box-shadow: 0 0 24px var(--accent-glow);
+  background: rgba(124, 58, 237, 0.03);
+}
+
+/* Smooth fade in */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up {
+  animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}

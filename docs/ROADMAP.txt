@@ -1,0 +1,48 @@
+# 💎 Our Dreams OS - Roadmap de Elite (V1.0)
+
+> **Visão:** Transformar o gerenciamento de projetos em uma experiência de luxo "Custo Zero", focada em automação, design Neon/Dark e fidelização extrema.
+
+---
+
+## 🏛️ Pilar Central: Client Experience "Link de Ouro" (Deep Dive)
+*O foco aqui é eliminar a fricção. O cliente não "loga", ele "entra na experiência".*
+
+### 1.1 Acesso por Token (Magic Link)
+- [ ] **Arquitetura Zero-Auth:** Geração de UUIDs únicos para cada projeto. O link enviado ao WhatsApp do cliente
+
+### 1.2 Timeline Visual de Dopamina
+- [ ] **Stepper Interativo Personalizado e Diferente para cada tipo de Serviço:** Uma linha do tempo dinâmica estilo "iFood de Luxo". 
+  - *Status:* `Briefing` -> `Levantamento` -> `Renderização` -> `Detalhamento` -> `Entrega`.
+- [ ] **Progress Glow:** A barra de progresso emite um brilho (glow) neon roxo conforme as etapas são concluídas, dando sensação de avanço real.
+
+### 1.3 O "Asset Vault" (Cofre de Arquivos)
+- [ ] **Integração Cloud-Zero:** O sistema não armazena arquivos pesados (para manter o Supabase gratuito). Ele espelha links do Google Drive/Dropbox de forma organizada.
+- [ ] **Visualizador de Renders:** Galeria de imagens otimizada dentro do portal para o cliente ver os projetos sem precisar baixar arquivos de 20MB no celular.
+
+### 1.4 Central de Aprovação "One-Tap"
+- [ ] **Log de Aceite:** Botão de "Aprovar Etapa". Ao clicar, o sistema registra data, hora e IP, gerando uma barreira jurídica e operacional contra mudanças de escopo infinitas.
+- [ ] **Feedback Loop:** Se o cliente clica em "Solicitar Ajuste", abre-se um campo de texto simples que cai direto no seu Dashboard como uma "Tarefa de Alta Prioridade".
+
+---
+
+## ⚙️ Pilar Operacional: O Motor Interno
+*Eficiência máxima para o gestor (Você).*
+
+- [ ] **Elaborar Dashboard Financeiro
+- [ ] **Gerador de Contratos (HTML to PDF):** Template pré-configurado que puxa os dados do banco e gera o contrato pronto para envio em 1 clique.
+- [ ] **Widget de Urgência Inteligente:** Lista na Home que ordena projetos pela proximidade do prazo de entrega, mudando a cor de roxo para vermelho conforme o atraso.
+
+---
+
+## 🛠️ Stack Tecnológica (Custo Zero Vitalício)
+- **Frontend:** Next.js (App Router) + Tailwind CSS (Neon Theme).
+- **Backend:** Supabase (PostgreSQL + Auth via Link).
+- **Hospedagem:** Vercel (Plano Hobby - Free).
+- **Ícones/Imagens:** Lucide React + Unsplash API.
+
+---
+
+## 📈 Próximos Passos (A Execução)
+1. **Sprint 1:** Implementar a lógica de geração de Token Único no Banco de Dados.
+2. **Sprint 2:** Criar a página pública `/p/[id]` com o Stepper de Progresso.
+3. **Sprint 3:** Desenvolver o Widget de Aprovação e integração com Drive.
