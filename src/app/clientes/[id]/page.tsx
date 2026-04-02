@@ -3,9 +3,9 @@
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { Plus, Save, Activity, CheckCircle, Disc, X } from 'lucide-react';
+import { Plus, Save, Activity, CheckCircle, Disc, X, Share2, Check } from 'lucide-react';
 import { SERVICOS, MIX_MASTER_CHECKLIST, ETAPAS_VENDAS, getStatusTheme } from '@/constants/workflow';
+import { getClientProfileData, updateClienteAnotacoes, createUpsellProject } from '@/actions/databaseActions'; // [SEC REFACTOR]
 
 const FLUXO_LABEL: Record<string, { label: string; color: string }> = {
   AGUARDANDO_BASE:    { label: 'Aguardando Base',    color: '#8b8ba7' },
@@ -39,30 +39,40 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
     terceirizados: ''
   });
 
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyLink = (token: string, projectId: string) => {
+    const url = `${window.location.origin}/p/${token}`;
+    navigator.clipboard.writeText(url);
+    setCopiedId(projectId);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   useEffect(() => {
     async function fetchData() {
-      const [ { data: cData }, { data: pData }, { data: nData } ] = await Promise.all([
-        supabase.from('clientes').select('*').eq('id', id).single(),
-        supabase.from('projetos').select('*').eq('cliente_id', id).order('created_at', { ascending: false }),
-        supabase.from('n8n_estado').select('*').eq('cliente_id', id).single()
-      ]);
-      setCliente(cData);
-      setAnotacoes(cData?.anotacoes || '');
-      setProjetos(pData || []);
-      if (nData) setN8n(nData);
-      setLoading(false);
+      try {
+        const { cliente: cData, projetos: pData, n8n: nData } = await getClientProfileData(id);
+        setCliente(cData);
+        setAnotacoes(cData?.anotacoes || '');
+        setProjetos(pData || []);
+        if (nData) setN8n(nData);
+      } catch (err: any) {
+        console.error('Error fetching client data:', err.message);
+      } finally {
+        setLoading(false);
+      }
     }
     fetchData();
   }, [id]);
 
   const handleSaveNotes = async () => {
     setSavingNotes(true);
-    const { error } = await supabase
-      .from('clientes')
-      .update({ anotacoes })
-      .eq('id', id);
-      
-    if (error) console.error('Erro ao salvar anotações:', error);
+    try {
+      await updateClienteAnotacoes(id, anotacoes);
+    } catch (error) {
+      console.error('Erro ao salvar anotações:', error);
+      alert('Erro ao salvar anotações.');
+    }
     setSavingNotes(false);
   };
 
@@ -89,17 +99,19 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
       sinal_pago: false // Always starts false for a new upsell, they can change it later
     };
 
-    const { data, error } = await supabase.from('projetos').insert(newProject).select().single();
-
-    if (error) {
-      console.error('Failed to create upsell project:', error.message, error.details);
+    try {
+      const createdProj = await createUpsellProject(newProject);
+      if (createdProj) {
+        setProjetos([createdProj, ...projetos]);
+        setShowUpsell(false);
+        setUpsellData({ servicosSelecionados: [], valor_fechado: '', prazo_entrega: '', terceirizados: '' });
+      }
+    } catch (error: any) {
+      console.error('Failed to create upsell project:', error.message);
       alert(`Erro ao criar projeto: ${error.message}`);
-    } else if (data) {
-      setProjetos([data, ...projetos]);
-      setShowUpsell(false);
-      setUpsellData({ servicosSelecionados: [], valor_fechado: '', prazo_entrega: '', terceirizados: '' });
+    } finally {
+      setSubmittingUpsell(false);
     }
-    setSubmittingUpsell(false);
   };
 
   if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Carregando perfil...</div>;
@@ -372,7 +384,26 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
                         {proj.cupom_usado && ` · 🎟️ ${proj.cupom_usado}`}
                       </div>
                     </div>
+
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {/* Share Button */}
+                      {proj.public_token && (
+                        <button
+                          onClick={() => handleCopyLink(proj.public_token, proj.id)}
+                          style={{
+                            background: copiedId === proj.id ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.05)',
+                            border: `1px solid ${copiedId === proj.id ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`,
+                            borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+                            color: copiedId === proj.id ? '#22c55e' : 'var(--text-muted)',
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            transition: 'all 0.2s', fontSize: 11, fontWeight: 600
+                          }}
+                        >
+                          {copiedId === proj.id ? <Check size={12} /> : <Share2 size={12} />}
+                          {copiedId === proj.id ? 'Copiado!' : 'Link Ouro'}
+                        </button>
+                      )}
+
                       {/* Checklist Mix/Master display */}
                       {proj.checklist_preparacao && Array.isArray(proj.checklist_preparacao) && proj.checklist_preparacao.length > 0 && (
                         <span style={{

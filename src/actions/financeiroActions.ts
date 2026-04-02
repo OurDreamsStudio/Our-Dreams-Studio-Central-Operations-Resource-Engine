@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 
 // --- CUSTOS FIXOS CRUD ---
 export async function getCustosFixos() {
+  await requireAuth();
   const { data, error } = await supabaseServer.from('custos_fixos').select('*').order('vencimento_dia', { ascending: true });
   if (error) throw new Error(error.message);
   return data;
@@ -42,6 +43,7 @@ export async function deleteCustoFixo(id: string) {
 
 // --- ATIVOS HARDWARE CRUD ---
 export async function getAtivosHardware() {
+  await requireAuth();
   const { data, error } = await supabaseServer.from('ativos_hardware').select('*').order('data_compra', { ascending: false });
   if (error) throw new Error(error.message);
   return data;
@@ -70,6 +72,7 @@ export async function saveAtivoHardware(id: string | null, data: any) {
 // --- INTELIGÊNCIA FINANCEIRA (EFI ENGINE) ---
 
 export async function getFinancialIntelligence() {
+  await requireAuth();
   // 1. Fetch all necessary data
   const [
     { data: projetos },
@@ -77,8 +80,8 @@ export async function getFinancialIntelligence() {
     { data: custosFixos },
     { data: hardware }
   ] = await Promise.all([
-    supabaseServer.from('projetos').select('valor_fechado, sinal_pago, entrega_paga, cliente_id, created_at, clientes(nome_artistico, nome_pessoal)'),
-    supabaseServer.from('tarefas_terceirizados').select('valor_combinado, status_pagamento'),
+    supabaseServer.from('projetos').select('id, valor_fechado, sinal_pago, entrega_paga, cliente_id, created_at, clientes(nome_artistico, nome_pessoal)'),
+    supabaseServer.from('tarefas_terceirizados').select('projeto_id, valor_combinado, status_pagamento'),
     supabaseServer.from('custos_fixos').select('valor'),
     supabaseServer.from('ativos_hardware').select('*')
   ]);
@@ -127,20 +130,41 @@ export async function getFinancialIntelligence() {
     valorInventarioAtual += valorRestante;
   });
 
-  // 6. LTV Ranking
-  const ltvMap: Record<string, { nome: string, receita: number }> = {};
+  // 6. LTV Ranking (agora baseado em Margem Contribuição Média, não apenas faturamento)
+  const TAXA_ENCARGOS = 0.09; // 9% estimativa (Simples Nacional + Taxas de Cartão/Gateway)
+  const ltvMap: Record<string, { nome: string, receitaBruta: number, custos: number, margem: number }> = {};
+  
   projetos?.forEach(p => {
     const cid = p.cliente_id;
     if (!ltvMap[cid]) {
       const clienteNome = (p.clientes as any)?.nome_artistico || (p.clientes as any)?.nome_pessoal || 'Desconhecido';
       ltvMap[cid] = { 
         nome: clienteNome, 
-        receita: 0 
+        receitaBruta: 0,
+        custos: 0,
+        margem: 0
       };
     }
-    ltvMap[cid].receita += Number(p.valor_fechado);
+    const valorFechado = Number(p.valor_fechado);
+    ltvMap[cid].receitaBruta += valorFechado;
+    
+    let custosProjeto = valorFechado * TAXA_ENCARGOS;
+    const splits = tarefas?.filter(t => t.projeto_id === p.id);
+    splits?.forEach(t => {
+      custosProjeto += Number(t.valor_combinado || 0);
+    });
+
+    ltvMap[cid].custos += custosProjeto;
+    ltvMap[cid].margem = ltvMap[cid].receitaBruta - ltvMap[cid].custos;
   });
-  const ltvRanking = Object.values(ltvMap).sort((a, b) => b.receita - a.receita).slice(0, 5);
+  
+  // Mapeia para interface antiga mas com os dados reias de margem
+  const ltvRanking = Object.values(ltvMap)
+    .sort((a, b) => b.margem - a.margem)
+    .slice(0, 5)
+    .map(c => ({ nome: c.nome, receita: c.margem })); // Hack: injeta a margem no lugar da receita bruta para ranqueamento justo
+
+  const impostosEstimados = receitaBrutaTotal * TAXA_ENCARGOS;
 
   return {
     receitaBrutaTotal,
@@ -149,9 +173,10 @@ export async function getFinancialIntelligence() {
     totalSplits,
     splitsPendentes,
     OpExMensal,
+    impostosEstimados,
     valorInventarioAtual,
     ltvRanking,
-    margemContribuicao: receitaBrutaTotal - totalSplits,
-    lucroOperacional: receitaBrutaTotal - totalSplits - OpExMensal // Simplificação para DRE
+    margemContribuicao: receitaBrutaTotal - totalSplits - impostosEstimados,
+    lucroOperacional: receitaBrutaTotal - totalSplits - impostosEstimados - OpExMensal
   };
 }

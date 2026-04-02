@@ -1,10 +1,12 @@
 'use server';
 import { supabaseServer } from '@/lib/supabaseServer';
+import { requireAuth } from '@/lib/requireAuth';
 import { revalidatePath } from 'next/cache';
 
 // --- ENGINE ALERTA VERMELHO (VIGILÂNCIA PROATIVA) ---
 
 export async function runVigilanceEngine() {
+    await requireAuth();
     const hoje = new Date();
     
     // 1. Projetos em Perigo (Prazo < 48h e não entregue)
@@ -99,6 +101,7 @@ async function upsertAlert(titulo: string, mensagem: string, link: string, proje
 }
 
 export async function clearAllNotifications() {
+    await requireAuth();
     await supabaseServer
         .from('notificacoes')
         .delete()
@@ -111,6 +114,7 @@ export async function clearAllNotifications() {
 // --- UI ACTIONS ---
 
 export async function getNotifications() {
+    await requireAuth();
     const { data } = await supabaseServer
         .from('notificacoes')
         .select('*, projetos(id)')
@@ -122,6 +126,7 @@ export async function getNotifications() {
 }
 
 export async function getUnreadCount() {
+    await requireAuth();
     const { count } = await supabaseServer
         .from('notificacoes')
         .select('*', { count: 'exact', head: true })
@@ -130,6 +135,7 @@ export async function getUnreadCount() {
 }
 
 export async function markAsRead(id: string) {
+    await requireAuth();
     await supabaseServer.from('notificacoes').update({ lida: true }).eq('id', id);
     revalidatePath('/');
 }
@@ -137,6 +143,7 @@ export async function markAsRead(id: string) {
 // --- MONITORING (UI CALLS) ---
 
 export async function getAlertedProjectIds() {
+    await requireAuth();
     const { data } = await supabaseServer
         .from('notificacoes')
         .select('link')
@@ -148,6 +155,7 @@ export async function getAlertedProjectIds() {
 }
 
 export async function sendMorningDigest() {
+    await requireAuth();
     const { data: alerts } = await supabaseServer
         .from('notificacoes')
         .select('*')

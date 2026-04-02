@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
-import { useParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { useEffect, useState, useTransition, use } from 'react';
 import { 
   CheckCircle2, 
   Clock, 
@@ -18,9 +16,11 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { enviarEtapaParaAprovacao } from '@/actions/terceirizadosActions';
+import { getPublicTask } from '@/actions/publicActions'; // [SEC REFACTOR]
 
-export default function PartnerPortalPage() {
-  const { token } = useParams();
+export default function PartnerPortalPage({ params }: { params: Promise<{ token: string }> }) {
+  const unwrappedParams = use(params);
+  const token = unwrappedParams.token;
   const [tarefa, setTarefa] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -33,35 +33,15 @@ export default function PartnerPortalPage() {
     async function fetchTask() {
       if (!token) return;
 
-      const { data, error } = await supabase
-        .from('tarefas_terceirizados')
-        .select(`
-          id,
-          descricao_tarefa,
-          prazo_entrega,
-          status_entrega,
-          roadmap_etapas,
-          etapa_atual_index,
-          status_etapa_atual,
-          motivo_revisao_etapa,
-          link_entrega,
-          projetos (
-            tipo_servico,
-            clientes (
-              nome_artistico
-            )
-          )
-        `)
-        .eq('public_token', token)
-        .single();
-
-      if (error || !data) {
-        console.error('Error:', error);
-        setError(true);
-      } else {
+      try {
+        const data = await getPublicTask(token);
         setTarefa(data);
+      } catch (err: any) {
+        console.error('Error fetching public task:', err);
+        setError(true);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
 
     fetchTask();

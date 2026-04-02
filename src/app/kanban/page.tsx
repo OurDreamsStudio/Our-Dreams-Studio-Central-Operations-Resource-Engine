@@ -2,11 +2,11 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
-import { Disc, DollarSign, X, Check, Tag, AlertCircle, Link as LinkIcon } from 'lucide-react';
-import { handleSupabaseError, formatCurrency, formatDate } from '@/lib/utils';
+import { Disc, DollarSign, X, Check, Tag, AlertCircle, Link as LinkIcon, Share2 } from 'lucide-react';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { useGrabScroll } from '@/hooks/useGrabScroll';
 import { SERVICOS, ETAPAS_PRODUCAO, MIX_MASTER_CHECKLIST, ETAPAS_VENDAS, FunilStatus, getStatusTheme } from '@/constants/workflow';
+import { getClientesKanban, moverClienteFunil, fecharProjetoNoKanban } from '@/actions/databaseActions'; // [SEC REFACTOR]
 
 const COLUMNS: { id: FunilStatus; label: string }[] = [
   { id: 'Inbound WhatsApp', label: 'Inbound WhatsApp' },
@@ -47,18 +47,14 @@ export default function KanbanPage() {
 
   useEffect(() => {
     async function fetchData() {
-      const { data: cData, error } = await supabase
-        .from('clientes')
-        .select('*')
-        .neq('status_funil', 'Concluído/Produção')
-        .order('data_entrada', { ascending: false });
-        
-      if (error) {
-        console.error('Error fetching leads:', error);
+      try {
+        const cData = await getClientesKanban();
+        setProjetos(cData || []);
+      } catch (err) {
+        console.error('Error fetching leads:', err);
+      } finally {
+        setLoading(false);
       }
-      
-      setProjetos(cData || []);
-      setLoading(false);
     }
     fetchData();
   }, []);
@@ -94,18 +90,13 @@ export default function KanbanPage() {
     setDragging(null);
     setOverCol(null);
 
-    // Persiste no banco; reverte em caso de falha
+    // Persiste no banco usando Server Action
     try {
-      const { error } = await supabase
-        .from('clientes')
-        .update({ status_funil: colId })
-        .eq('id', projectId);
-        
-      if (error) throw error;
-    } catch (err) {
+      await moverClienteFunil(projectId, colId);
+    } catch (err: any) {
       console.error('Failed to update status, reverting:', err);
       setProjetos(snapshot); // Rollback
-      alert('Erro ao atualizar posição. A alteração foi revertida.');
+      alert('Erro ao atualizar posição: ' + err.message);
     }
   }, [dragging, projetos]);
 
@@ -145,44 +136,28 @@ export default function KanbanPage() {
 
     const valorTotal = Object.values(modalData.servicosPrecos).reduce((acc, v) => acc + v, 0);
 
-    // 1. Create the project
-    const { error: projectError } = await supabase
-      .from('projetos')
-      .insert([{
-        cliente_id: closingProject, // In this refactor, closingProject is the clientId
-        nome: `Projeto - ${modalData.servicosSelecionados[0] || 'Novo'}`,
-        status_funil: 'Fechado',
-        status_producao: ETAPAS_PRODUCAO[0], // Definição de Escopo
-        servicos_fechados: servicosStr,
-        checklist_preparacao: checklist,
-        valor_fechado: valorTotal,
-        valores_servicos: modalData.servicosPrecos,
-        sinal_pago: modalData.sinal_pago,
-        prazo_entrega: modalData.prazo_entrega || null,
-        terceirizados: modalData.terceirizados || null
-      }]);
+    const projectData = {
+      nome: `Projeto - ${modalData.servicosSelecionados[0] || 'Novo'}`,
+      status_producao: ETAPAS_PRODUCAO[0], // Definição de Escopo
+      servicos_fechados: servicosStr,
+      checklist_preparacao: checklist,
+      valor_fechado: valorTotal,
+      valores_servicos: modalData.servicosPrecos,
+      sinal_pago: modalData.sinal_pago,
+      prazo_entrega: modalData.prazo_entrega,
+      terceirizados: modalData.terceirizados
+    };
 
-    if (projectError) {
-      console.error('Failed to create project:', projectError);
-      alert('Erro ao criar projeto: ' + handleSupabaseError(projectError));
+    try {
+      await fecharProjetoNoKanban(closingProject, projectData);
+      setProjetos((prev) => prev.filter((p) => p.id !== closingProject));
+      handleCloseModal();
+    } catch (err: any) {
+      console.error('Failed to create project:', err);
+      alert('Erro ao criar projeto: ' + err.message);
+    } finally {
       setSubmitting(false);
-      return;
     }
-
-    // 2. Update client status to Concluído/Produção (Archiving lead from Kanban)
-    const { error: clientError } = await supabase
-      .from('clientes')
-      .update({ status_funil: 'Concluído/Produção' })
-      .eq('id', closingProject);
-
-    if (clientError) {
-       console.error('Failed to update client funnel:', clientError);
-    }
-
-    setProjetos((prev) => prev.filter((p) => p.id !== closingProject));
-
-    handleCloseModal();
-    setSubmitting(false);
   };
 
   if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Carregando Kanban...</div>;
@@ -271,22 +246,25 @@ export default function KanbanPage() {
                         }}
                       >
                         {/* Card top */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                          <div style={{
-                            width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                            background: `linear-gradient(135deg, ${getAvatarColor(av)}, ${getAvatarColor(av)}99)`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontWeight: 700, fontSize: 14, color: '#fff',
-                          }}>
-                            {av.charAt(0).toUpperCase()}
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <Link href={`/clientes/${proj.id}`} style={{ textDecoration: 'none' }}>
-                              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {av}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                            <div style={{
+                              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                              background: `linear-gradient(135deg, ${getAvatarColor(av)}, ${getAvatarColor(av)}99)`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontWeight: 700, fontSize: 14, color: '#fff',
+                            }}>
+                              {av.charAt(0).toUpperCase()}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <Link href={`/clientes/${proj.id}`} style={{ textDecoration: 'none' }}>
+                                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {av}
+                                </div>
+                              </Link>
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {proj.instagram || proj.email}
                               </div>
-                            </Link>
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {proj.instagram || proj.email}
                             </div>
                           </div>

@@ -1,8 +1,6 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { supabaseServer } from '@/lib/supabaseServer';
+import { requireAuth } from '@/lib/requireAuth';
 
 const BADGE_MAP: Record<string, string> = {
   Prospectado:            'badge-prospectado',
@@ -12,40 +10,31 @@ const BADGE_MAP: Record<string, string> = {
   Perdido:                'badge-perdido',
 };
 
-export default function ClientesPage() {
-  const [clientes, setClientes] = useState<any[]>([]);
-  const [projetos, setProjetos] = useState<any[]>([]);
-  const [n8nEstados, setN8nEstados] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default async function ClientesPage() {
+  let clientes: any[] = [];
+  let projetos: any[] = [];
+  let n8nEstados: any[] = [];
+  let error: string | null = null;
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [ cRes, pRes, nRes ] = await Promise.all([
-          supabase.from('clientes').select('*').order('nome_artistico', { ascending: true }),
-          supabase.from('projetos').select('*'),
-          supabase.from('n8n_estado').select('*')
-        ]);
+  try {
+    await requireAuth();
+    const [ cRes, pRes, nRes ] = await Promise.all([
+      supabaseServer.from('clientes').select('*').order('nome_artistico', { ascending: true }),
+      supabaseServer.from('projetos').select('*'),
+      supabaseServer.from('n8n_estado').select('*')
+    ]);
 
-        if (cRes.error) throw cRes.error;
-        if (pRes.error) throw pRes.error;
-        if (nRes.error) throw nRes.error;
+    if (cRes.error) throw cRes.error;
+    if (pRes.error) throw pRes.error;
+    if (nRes.error) throw nRes.error;
 
-        setClientes(cRes.data || []);
-        setProjetos(pRes.data || []);
-        setN8nEstados(nRes.data || []);
-      } catch (err: any) {
-        console.error('Erro ao buscar dados:', err);
-        setError(err.message || 'Erro desconhecido ao carregar clientes');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
-
-  if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Carregando clientes...</div>;
+    clientes = cRes.data || [];
+    projetos = pRes.data || [];
+    n8nEstados = nRes.data || [];
+  } catch (err: any) {
+    console.error('Erro ao buscar dados:', err);
+    error = err.message || 'Erro desconhecido ao carregar clientes';
+  }
 
   if (error) {
     return (

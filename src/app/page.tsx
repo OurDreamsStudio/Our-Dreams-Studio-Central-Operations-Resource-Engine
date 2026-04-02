@@ -1,38 +1,29 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { Users, TrendingUp, Briefcase, DollarSign, Activity, FileText, Clock } from 'lucide-react';
+import { supabaseServer } from '@/lib/supabaseServer';
+import { requireAuth } from '@/lib/requireAuth';
 
-export default function DashboardPage() {
-  const [clientes, setClientes] = useState<any[]>([]);
-  const [projetos, setProjetos] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default async function DashboardPage() {
+  let clientes: any[] = [];
+  let projetos: any[] = [];
+  let error: string | null = null;
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [ cRes, pRes ] = await Promise.all([
-          supabase.from('clientes').select('*').order('data_entrada', { ascending: false }),
-          supabase.from('projetos').select('*, clientes(nome_artistico, nome_pessoal)')
-        ]);
+  try {
+    await requireAuth();
+    const [ cRes, pRes ] = await Promise.all([
+      supabaseServer.from('clientes').select('*').order('data_entrada', { ascending: false }),
+      supabaseServer.from('projetos').select('*, clientes(nome_artistico, nome_pessoal)')
+    ]);
 
-        if (cRes.error) throw cRes.error;
-        if (pRes.error) throw pRes.error;
+    if (cRes.error) throw cRes.error;
+    if (pRes.error) throw pRes.error;
 
-        setClientes(cRes.data || []);
-        setProjetos(pRes.data || []);
-      } catch (err: any) {
-        console.error('Erro ao buscar dados:', err);
-        setError(err.message || 'Erro desconhecido ao carregar dashboard');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, []);
+    clientes = cRes.data || [];
+    projetos = pRes.data || [];
+  } catch (err: any) {
+    console.error('Erro ao buscar dados:', err);
+    error = err.message || 'Erro desconhecido ao carregar dashboard';
+  }
 
   const receitaTotal = () => projetos
     .filter((p) => p.valor_fechado)
@@ -61,7 +52,6 @@ export default function DashboardPage() {
   projetos.filter(p => p.valor_fechado && p.servicos_fechados).forEach(p => {
     const servs = p.servicos_fechados.split(',').map((s: string) => s.trim()).filter(Boolean);
     
-    // Fallback: se houver valores_servicos (JSON), usa o valor exato. Senão, divide o total.
     if (p.valores_servicos && typeof p.valores_servicos === 'object') {
       Object.entries(p.valores_servicos).forEach(([s, v]) => {
         revenueByService[s] = (revenueByService[s] || 0) + Number(v);
@@ -73,6 +63,7 @@ export default function DashboardPage() {
       });
     }
   });
+  
   const chartData = Object.entries(revenueByService).map(([label, val]) => ({ label, val })).sort((a,b) => b.val - a.val);
   const maxChartVal = chartData.length > 0 ? Math.max(...chartData.map(d => d.val)) : 1;
 
@@ -80,8 +71,6 @@ export default function DashboardPage() {
     .filter(p => p.prazo_entrega && p.status_producao && p.status_producao !== 'Entregue' && p.status_producao !== 'Cancelado')
     .sort((a, b) => new Date(a.prazo_entrega).getTime() - new Date(b.prazo_entrega).getTime())
     .slice(0, 3);
-
-  if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Carregando dashboard...</div>;
 
   if (error) {
     return (
@@ -238,9 +227,8 @@ export default function DashboardPage() {
                 return (
                   <tr
                     key={c.id}
-                    style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.15s', cursor: 'pointer' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(124,58,237,0.06)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.15s' }}
+                    className="hover:bg-[rgba(124,58,237,0.06)]"
                   >
                     <td style={{ padding: '12px 12px 12px 0' }}>
                       <Link href={`/clientes/${c.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>

@@ -1,16 +1,16 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useParams } from 'next/navigation';
+import { useEffect, useState, useTransition, use } from 'react';
 import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle } from 'lucide-react';
 import { handleSupabaseError, formatCurrency, formatDate } from '@/lib/utils';
 import { ETAPAS_PRODUCAO, getStatusTheme } from '@/constants/workflow';
 import { aprovarProjeto, registrarSolicitacaoRevisao } from '@/actions/databaseActions';
+import { getPublicProject } from '@/actions/publicActions'; // [SEC REFACTOR]
 import { ProjetoComCliente } from '@/types';
 
-export default function PublicPortalPage() {
-  const { token } = useParams();
+export default function PublicPortalPage({ params }: { params: Promise<{ token: string }> }) {
+  const unwrappedParams = use(params);
+  const token = unwrappedParams.token;
   const [projeto, setProjeto] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -22,34 +22,15 @@ export default function PublicPortalPage() {
     async function fetchProject() {
       if (!token) return;
 
-      const { data, error } = await supabase
-        .from('projetos')
-        .select(`
-          id,
-          tipo_servico,
-          status_producao,
-          prazo_entrega,
-          servicos_fechados,
-          link_arquivos,
-          data_aprovacao,
-          motivo_revisao,
-          contador_revisoes,
-          historico_revisoes,
-          clientes (
-            nome_artistico,
-            nome_pessoal
-          )
-        `)
-        .eq('public_token', token)
-        .single();
-
-      if (error || !data) {
-        console.error('Error fetching public project:', error);
-        setError(true);
-      } else {
+      try {
+        const data = await getPublicProject(token);
         setProjeto(data);
+      } catch (err: any) {
+        console.error('Error fetching public project:', err);
+        setError(true);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
 
     fetchProject();
@@ -60,8 +41,7 @@ export default function PublicPortalPage() {
     startTransition(async () => {
       try {
         await aprovarProjeto(token as string);
-        // Refresh local state or use the returned data
-        const { data } = await supabase.from('projetos').select('data_aprovacao, status_producao').eq('public_token', token).single();
+        const data = await getPublicProject(token);
         setProjeto((prev: any) => prev ? ({ ...prev, ...data } as ProjetoComCliente) : null);
       } catch (err: any) {
         alert('Erro ao aprovar projeto: ' + handleSupabaseError(err));

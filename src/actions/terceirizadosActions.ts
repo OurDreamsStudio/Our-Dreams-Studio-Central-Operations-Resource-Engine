@@ -1,11 +1,13 @@
 'use server';
 
 import { supabaseServer } from '@/lib/supabaseServer';
+import { requireAuth } from '@/lib/requireAuth';
 import { revalidatePath } from 'next/cache';
 
 // --- TERCEIRIZADOS CRUD ---
 
 export async function getTerceirizados() {
+  await requireAuth();
   const { data, error } = await supabaseServer
     .from('terceirizados')
     .select('*')
@@ -16,6 +18,7 @@ export async function getTerceirizados() {
 }
 
 export async function saveTerceirizado(id: string | null, data: any) {
+  await requireAuth();
   if (id) {
     const { error } = await supabaseServer
       .from('terceirizados')
@@ -33,6 +36,7 @@ export async function saveTerceirizado(id: string | null, data: any) {
 }
 
 export async function deleteTerceirizado(id: string) {
+  await requireAuth();
   const { error } = await supabaseServer
     .from('terceirizados')
     .delete()
@@ -45,6 +49,7 @@ export async function deleteTerceirizado(id: string) {
 // --- TAREFAS CRUD ---
 
 export async function getTarefas() {
+  await requireAuth();
   const { data, error } = await supabaseServer
     .from('tarefas_terceirizados')
     .select('*, projetos(tipo_servico, clientes(nome_artistico)), terceirizados(nome, especialidade)')
@@ -55,6 +60,7 @@ export async function getTarefas() {
 }
 
 export async function saveTarefa(id: string | null, data: any) {
+  await requireAuth();
   // Ensure numeric value
   const dataToSave = {
     ...data,
@@ -78,6 +84,7 @@ export async function saveTarefa(id: string | null, data: any) {
 }
 
 export async function deleteTarefa(id: string) {
+  await requireAuth();
   const { error } = await supabaseServer
     .from('tarefas_terceirizados')
     .delete()
@@ -104,6 +111,7 @@ export async function enviarEtapaParaAprovacao(token: string, link: string) {
 }
 
 export async function aprovarEtapa(tarefaId: string) {
+  await requireAuth();
   // 1. Get current state
   const { data: tarefa, error: fetchError } = await supabaseServer
     .from('tarefas_terceirizados')
@@ -144,6 +152,7 @@ export async function aprovarEtapa(tarefaId: string) {
 }
 
 export async function solicitarRevisaoEtapa(tarefaId: string, motivo: string) {
+  await requireAuth();
   const { error } = await supabaseServer
     .from('tarefas_terceirizados')
     .update({ 
@@ -159,6 +168,7 @@ export async function solicitarRevisaoEtapa(tarefaId: string, motivo: string) {
 }
 
 export async function confirmarPagamento(tarefaId: string) {
+  await requireAuth();
   const { error } = await supabaseServer
     .from('tarefas_terceirizados')
     .update({ status_pagamento: 'Pago' })
@@ -170,6 +180,7 @@ export async function confirmarPagamento(tarefaId: string) {
 }
 
 export async function getCountPendingApprovals() {
+  await requireAuth();
   const { count, error } = await supabaseServer
     .from('tarefas_terceirizados')
     .select('*', { count: 'exact', head: true })

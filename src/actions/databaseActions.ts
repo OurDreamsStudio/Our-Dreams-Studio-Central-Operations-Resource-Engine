@@ -15,6 +15,7 @@ function sanitizeWhatsApp(id: string | null | undefined): string | null {
 // --- CLIENT ACTIONS ---
 
 export async function getClientes() {
+  await requireAuth();
   const { data, error } = await supabaseServer
     .from('clientes')
     .select('*')
@@ -81,6 +82,7 @@ export async function deleteCliente(id: string) {
 // --- PROJECT ACTIONS ---
 
 export async function getProjetos() {
+  await requireAuth();
   const { data, error } = await supabaseServer
     .from('projetos')
     .select('*, clientes(nome_artistico, nome_pessoal)')
@@ -105,7 +107,8 @@ export async function saveProjeto(id: string | null, projectData: Partial<Projet
     link_arquivos: projectData.link_arquivos || null,
     servicos_fechados: projectData.servicos_fechados || null,
     valores_servicos: projectData.valores_servicos || null,
-    cupom_usado: projectData.cupom_usado || null
+    cupom_usado: projectData.cupom_usado || null,
+    public_token: !id ? crypto.randomUUID() : undefined // Generate only on insert
   };
 
   if (id) {
@@ -157,6 +160,7 @@ export async function saveProjeto(id: string | null, projectData: Partial<Projet
 }
 
 export async function getProjetosAgenda() {
+  await requireAuth();
   const [projetosResponse, tarefasResponse] = await Promise.all([
     supabaseServer
       .from('projetos')
@@ -200,6 +204,7 @@ export async function getProjetosAgenda() {
 }
 
 export async function getProjetoCompleto(id: string) {
+  await requireAuth();
   const { data, error } = await supabaseServer
     .from('projetos')
     .select(`
@@ -336,4 +341,147 @@ export async function registrarSolicitacaoRevisao(projectId: string, motivo: str
     console.error('CRITICAL ERROR in registrarSolicitacaoRevisao:', err);
     throw err;
   }
+}
+
+// --- KANBAN ACTIONS (Moved from Client Side) ---
+export async function getClientesKanban() {
+  await requireAuth();
+  const { data, error } = await supabaseServer
+    .from('clientes')
+    .select('*')
+    .neq('status_funil', 'Concluído/Produção')
+    .order('data_entrada', { ascending: false });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function moverClienteFunil(id: string, novoStatus: string) {
+  await requireAuth();
+  const { error } = await supabaseServer.from('clientes').update({ status_funil: novoStatus }).eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/kanban');
+  return true;
+}
+
+export async function fecharProjetoNoKanban(clienteId: string, projectData: any) {
+  await requireAuth();
+  
+  // 1. Create project
+  const { data: proj, error: projError } = await supabaseServer.from('projetos').insert([{
+    cliente_id: clienteId,
+    nome: projectData.nome,
+    status_funil: 'Fechado',
+    status_producao: projectData.status_producao,
+    servicos_fechados: projectData.servicos_fechados,
+    checklist_preparacao: projectData.checklist_preparacao,
+    valor_fechado: projectData.valor_fechado,
+    valores_servicos: projectData.valores_servicos,
+    sinal_pago: projectData.sinal_pago,
+    prazo_entrega: projectData.prazo_entrega || null,
+    terceirizados: projectData.terceirizados || null
+  }]).select().single();
+  
+  if (projError) throw new Error(projError.message);
+
+  // 2. Update cliente status
+  const { error: cliError } = await supabaseServer.from('clientes').update({ status_funil: 'Concluído/Produção' }).eq('id', clienteId);
+  if (cliError) throw new Error(cliError.message);
+  
+  revalidatePath('/kanban');
+  return proj;
+}
+
+// --- PRODUCAO ACTIONS (Moved from Client Side) ---
+export async function getProjetosProducao() {
+  await requireAuth();
+  const { data, error } = await supabaseServer
+    .from('projetos')
+    .select('*, clientes(*)')
+    .not('status_producao', 'is', null)
+    .neq('status_producao', 'Cancelado')
+    .order('created_at', { ascending: false });
+    
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function updateProjetoChecklist(projectId: string, newChecklist: any) {
+  await requireAuth();
+  const { error } = await supabaseServer
+    .from('projetos')
+    .update({ checklist_preparacao: newChecklist })
+    .eq('id', projectId);
+  if (error) throw new Error(error.message);
+  revalidatePath('/producao');
+  return true;
+}
+
+export async function updateProjetoStatusProducao(id: string, novoStatus: string) {
+  await requireAuth();
+  const { error } = await supabaseServer
+    .from('projetos')
+    .update({ status_producao: novoStatus })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/producao');
+  return true;
+}
+
+export async function updateProjetoLinkArquivos(id: string, link: string) {
+  await requireAuth();
+  const { error } = await supabaseServer
+    .from('projetos')
+    .update({ link_arquivos: link })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/producao');
+  return true;
+}
+
+export async function confirmarEntregaProjeto(id: string, entregaPaga: boolean) {
+  await requireAuth();
+  const { error } = await supabaseServer
+    .from('projetos')
+    .update({
+      status_producao: 'Entregue',
+      entrega_paga: entregaPaga
+    })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/producao');
+  return true;
+}
+
+// --- CLIENT PROFILE ACTIONS (Moved from Client Side) ---
+export async function getClientProfileData(id: string) {
+  await requireAuth();
+  const [ { data: cData }, { data: pData }, { data: nData } ] = await Promise.all([
+    supabaseServer.from('clientes').select('*').eq('id', id).single(),
+    supabaseServer.from('projetos').select('*').eq('cliente_id', id).order('created_at', { ascending: false }),
+    supabaseServer.from('n8n_estado').select('*').eq('cliente_id', id).maybeSingle()
+  ]);
+  return { cliente: cData, projetos: pData || [], n8n: nData };
+}
+
+export async function updateClienteAnotacoes(id: string, anotacoes: string) {
+  await requireAuth();
+  const { error } = await supabaseServer
+    .from('clientes')
+    .update({ anotacoes })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/clientes/${id}`);
+  return true;
+}
+
+export async function createUpsellProject(projectData: any) {
+  await requireAuth();
+  const dataWithToken = {
+    ...projectData,
+    public_token: crypto.randomUUID()
+  };
+  const { data, error } = await supabaseServer.from('projetos').insert([dataWithToken]).select().single();
+  if (error) throw new Error(error.message);
+  revalidatePath(`/clientes/${projectData.cliente_id}`);
+  return data;
 }

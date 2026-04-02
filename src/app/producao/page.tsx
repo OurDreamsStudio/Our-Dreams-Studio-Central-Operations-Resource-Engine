@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { Disc, DollarSign, Calendar, Users, X, CheckCircle, Link as LinkIcon, Check, Settings } from 'lucide-react';
-import { handleSupabaseError, formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { useGrabScroll } from '@/hooks/useGrabScroll';
 
 import { ETAPAS_PRODUCAO, ProducaoStatus, getStatusTheme } from '@/constants/workflow';
 import { Projeto, Cliente, Terceirizado, TarefaTerceirizado, Notificacao } from '@/types';
+import { getProjetosProducao, updateProjetoChecklist, updateProjetoStatusProducao, updateProjetoLinkArquivos, confirmarEntregaProjeto } from '@/actions/databaseActions'; // [SEC REFACTOR]
 
 const COLUMNS: { id: typeof ETAPAS_PRODUCAO[number]; label: string }[] = [
   { id: 'Definição de Escopo', label: 'Def. Escopo' },
@@ -53,20 +53,14 @@ export default function ProducaoPage() {
 
   useEffect(() => {
     async function fetchData() {
-      // Fetches all projects that have a status_producao and not cancelled
-      const { data: pData, error } = await supabase
-        .from('projetos')
-        .select('*, clientes(*)')
-        .not('status_producao', 'is', null)
-        .neq('status_producao', 'Cancelado')
-        .order('created_at', { ascending: false });
-        
-      if (error) {
-        console.error('Error fetching projetos de producao:', error);
+      try {
+        const pData = await getProjetosProducao();
+        setProjetos(pData || []);
+      } catch (err: any) {
+        console.error('Error fetching projetos de producao:', err);
+      } finally {
+        setLoading(false);
       }
-      
-      setProjetos(pData || []);
-      setLoading(false);
     }
     fetchData();
   }, []);
@@ -91,16 +85,11 @@ export default function ProducaoPage() {
     newChecklist[itemIndex] = { ...newChecklist[itemIndex], done: newValue };
 
     try {
-      const { error } = await supabase
-        .from('projetos')
-        .update({ checklist_preparacao: newChecklist })
-        .eq('id', projectId);
-
-      if (error) throw error;
-    } catch (err) {
+      await updateProjetoChecklist(projectId, newChecklist);
+    } catch (err: any) {
       console.error('Failed to update checklist, reverting:', err);
       setProjetos(snapshot); // Rollback
-      alert('Erro ao atualizar checklist. A alteração foi revertida.');
+      alert('Erro ao atualizar checklist: ' + err.message);
     }
   };
 
@@ -136,16 +125,11 @@ export default function ProducaoPage() {
     setOverCol(null);
 
     try {
-      const { error } = await supabase
-        .from('projetos')
-        .update({ status_producao: colId })
-        .eq('id', projectId);
-        
-      if (error) throw error;
-    } catch (err) {
+      await updateProjetoStatusProducao(projectId, colId);
+    } catch (err: any) {
       console.error('Failed to update producao status, reverting:', err);
       setProjetos(snapshot); // Rollback
-      alert('Erro ao atualizar posição. A alteração foi revertida.');
+      alert('Erro ao atualizar posição: ' + err.message);
     }
   }, [dragging, projetos]);
 
@@ -181,19 +165,16 @@ export default function ProducaoPage() {
     if (!settingsProject) return;
     setSubmittingSettings(true);
 
-    const { error } = await supabase
-      .from('projetos')
-      .update({ link_arquivos: linkInput })
-      .eq('id', settingsProject.id);
-
-    if (error) {
-      console.error('Error saving settings:', error);
-      alert('Erro ao salvar configurações.');
-    } else {
+    try {
+      await updateProjetoLinkArquivos(settingsProject.id, linkInput);
       setProjetos(prev => prev.map(p => p.id === settingsProject.id ? { ...p, link_arquivos: linkInput } : p));
       handleCloseSettings();
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Erro ao salvar configurações.');
+    } finally {
+      setSubmittingSettings(false);
     }
-    setSubmittingSettings(false);
   };
 
   const handleConfirmDelivery = async (e: React.FormEvent) => {
@@ -201,31 +182,22 @@ export default function ProducaoPage() {
     if (!deliveringProject) return;
     setSubmittingDel(true);
 
-    const { error } = await supabase
-      .from('projetos')
-      .update({
-        status_producao: 'Entregue',
-        entrega_paga: entregaPaga
-      })
-      .eq('id', deliveringProject);
-
-    if (error) {
+    try {
+      await confirmarEntregaProjeto(deliveringProject, entregaPaga);
+      setProjetos((prev) =>
+        prev.map((p) => (p.id === deliveringProject ? {
+          ...p,
+          status_producao: 'Entregue',
+          entrega_paga: entregaPaga
+        } : p))
+      );
+      handleCloseDeliveryModal();
+    } catch (error) {
       console.error('Error delivering project:', error);
       alert('Erro ao confirmar entrega.');
+    } finally {
       setSubmittingDel(false);
-      return;
     }
-
-    setProjetos((prev) =>
-      prev.map((p) => (p.id === deliveringProject ? {
-        ...p,
-        status_producao: 'Entregue',
-        entrega_paga: entregaPaga
-      } : p))
-    );
-
-    setSubmittingDel(false);
-    handleCloseDeliveryModal();
   };
 
   if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Carregando Produção...</div>;
