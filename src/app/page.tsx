@@ -3,6 +3,8 @@ import { Users, TrendingUp, Briefcase, DollarSign, Activity, FileText, Clock } f
 import { supabaseServer } from '@/lib/supabaseServer';
 import { requireAuth } from '@/lib/requireAuth';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardPage() {
   let clientes: any[] = [];
   let projetos: any[] = [];

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { Disc, DollarSign, X, Check, Tag, AlertCircle, Link as LinkIcon, Share2 } from 'lucide-react';

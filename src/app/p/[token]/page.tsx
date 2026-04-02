@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState, useTransition, use } from 'react';
 import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle } from 'lucide-react';
 import { handleSupabaseError, formatCurrency, formatDate } from '@/lib/utils';

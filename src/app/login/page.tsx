@@ -1,12 +1,12 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { loginAction } from '@/actions/authActions';
 import { Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 
-export default function LoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirectTo') || '/';
 
@@ -265,5 +265,17 @@ export default function LoginPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
+        Carregando segurança...
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
