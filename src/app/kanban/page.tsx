@@ -82,7 +82,10 @@ export default function KanbanPage() {
       return;
     }
 
-    // Update optimistic UI for standard drop
+    // Snapshot do estado anterior para rollback
+    const snapshot = projetos;
+
+    // Update otimista — UI reflete a mudança imediatamente
     setProjetos((prev) =>
       prev.map((p) => (p.id === dragging ? { ...p, status_funil: colId } : p))
     );
@@ -91,16 +94,20 @@ export default function KanbanPage() {
     setDragging(null);
     setOverCol(null);
 
-    // Persist to Supabase
-    const { error } = await supabase
-      .from('clientes')
-      .update({ status_funil: colId })
-      .eq('id', projectId);
-      
-    if (error) {
-      console.error('Failed to update status:', error);
+    // Persiste no banco; reverte em caso de falha
+    try {
+      const { error } = await supabase
+        .from('clientes')
+        .update({ status_funil: colId })
+        .eq('id', projectId);
+        
+      if (error) throw error;
+    } catch (err) {
+      console.error('Failed to update status, reverting:', err);
+      setProjetos(snapshot); // Rollback
+      alert('Erro ao atualizar posição. A alteração foi revertida.');
     }
-  }, [dragging]);
+  }, [dragging, projetos]);
 
   const handleDragEnd = useCallback(() => {
     setDragging(null);
@@ -157,7 +164,7 @@ export default function KanbanPage() {
 
     if (projectError) {
       console.error('Failed to create project:', projectError);
-      alert('Erro ao criar projeto: ' + handleSupabaseError(projectError.message));
+      alert('Erro ao criar projeto: ' + handleSupabaseError(projectError));
       setSubmitting(false);
       return;
     }

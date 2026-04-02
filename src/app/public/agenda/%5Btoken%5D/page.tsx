@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { 
   ChevronLeft, 
@@ -25,7 +26,16 @@ export default function PublicAgendaPage() {
   const fetchData = async () => {
     try {
       const data = await getProjetosAgenda();
-      setProjetos(data || []);
+
+      // Defesa contra tokens expirados: filtra projetos cujo token_expires_at
+      // já passou, evitando que dados de links expirados apareçam publicamente.
+      const agora = new Date();
+      const ativos = (data || []).filter((p: any) => {
+        if (!p.token_expires_at) return true; // sem expiração = sempre válido
+        return new Date(p.token_expires_at) > agora;
+      });
+
+      setProjetos(ativos);
     } catch (e) {
       console.error(e);
     } finally {
@@ -67,8 +77,13 @@ export default function PublicAgendaPage() {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 16 }}>
-             /* eslint-disable-next-line @next/next/no-img-element */
-<img src="/logo.png" alt="Logo" style={{ width: 40, height: 40, borderRadius: 8 }} />
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={40}
+              height={40}
+              style={{ borderRadius: 8 }}
+            />
              <h1 style={{ fontSize: 24, fontWeight: 800 }}>Our Dreams <span className="gradient-text">Studio Pulse</span></h1>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Cronograma Público de Produção e Prazos.</p>

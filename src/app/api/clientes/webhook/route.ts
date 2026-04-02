@@ -2,10 +2,40 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: Request) {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!serviceRoleKey) {
+    console.error('[WEBHOOK] SUPABASE_SERVICE_ROLE_KEY não definida. Execução abortada.');
+    return NextResponse.json(
+      { success: false, error: 'Variável de ambiente crítica SUPABASE_SERVICE_ROLE_KEY não encontrada.' },
+      { status: 500 }
+    );
+  }
+
+  const webhookSecret = process.env.WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    console.error('[WEBHOOK] WEBHOOK_SECRET não definida. Execução abortada.');
+    return NextResponse.json(
+      { success: false, error: 'Variável de ambiente crítica WEBHOOK_SECRET não encontrada.' },
+      { status: 500 }
+    );
+  }
+
+  const incomingSecret = request.headers.get('x-webhook-secret');
+
+  if (!incomingSecret || incomingSecret !== webhookSecret) {
+    console.warn('[WEBHOOK] Tentativa de acesso com assinatura inválida ou ausente.');
+    return NextResponse.json(
+      { success: false, error: 'Acesso negado: assinatura de webhook inválida.' },
+      { status: 401 }
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
+
   try {
     const data = await request.json();
     

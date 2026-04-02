@@ -1,7 +1,20 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { Projeto, Cliente, Terceirizado, TarefaTerceirizado, Notificacao } from '@/types';
+import { CustoFixo, AtivoHardware } from '@/types';
+
+interface EfiData {
+  receitaBrutaTotal: number;
+  receitaMesAtual: number;
+  recebiveisProjetos: number;
+  totalSplits: number;
+  splitsPendentes: number;
+  OpExMensal: number;
+  valorInventarioAtual: number;
+  ltvRanking: { nome: string; receita: number }[];
+  margemContribuicao: number;
+  lucroOperacional: number;
+}
 import { 
   DollarSign, 
   TrendingUp, 
@@ -33,9 +46,9 @@ import {
 export default function FinanceiroPage() {
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
-  const [efi, setEfi] = useState<any>(null);
-  const [custos, setCustos] = useState<any[]>([]);
-  const [ativos, setAtivos] = useState<any[]>([]);
+  const [efi, setEfi] = useState<EfiData | null>(null);
+  const [custos, setCustos] = useState<CustoFixo[]>([]);
+  const [ativos, setAtivos] = useState<AtivoHardware[]>([]);
 
   // Modals
   const [showCustoModal, setShowCustoModal] = useState(false);
@@ -105,9 +118,18 @@ export default function FinanceiroPage() {
     );
   }
 
+  if (!efi) {
+    return (
+      <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+        Não foi possível carregar os dados financeiros. Tente novamente mais tarde.
+      </div>
+    );
+  }
+
   // Predictive Calculations
-  const breakEvenProgress = Math.min(100, (efi.receitaBrutaTotal / (efi.OpExMensal || 1)) * 100);
-  const faltaParaBreakEven = Math.max(0, efi.OpExMensal - efi.receitaBrutaTotal);
+  const receitaMesAtual = efi.receitaMesAtual ?? 0;
+  const breakEvenProgress = Math.min(100, (receitaMesAtual / (efi.OpExMensal || 1)) * 100);
+  const faltaParaBreakEven = Math.max(0, efi.OpExMensal - receitaMesAtual);
 
   return (
     <div style={{ padding: '32px 40px', maxWidth: 1400, margin: '0 auto' }} className="fade-up">

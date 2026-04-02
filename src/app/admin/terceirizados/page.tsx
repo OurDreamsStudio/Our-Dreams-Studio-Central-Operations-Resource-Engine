@@ -22,7 +22,7 @@ import {
   confirmarPagamento
 } from '@/actions/terceirizadosActions';
 
-import { Terceirizado, TarefaTerceirizado, Projeto } from '@/types';
+import { Terceirizado, TarefaTerceirizado, Projeto, ProjetoComCliente, TarefaComProjetoETerceiro } from '@/types';
 
 type Tab = 'time' | 'tarefas';
 
@@ -32,9 +32,9 @@ export default function AdminTerceirizadosPage() {
   const [isPending, startTransition] = useTransition();
   
   // Data
-  const [terceirizados, setTerceirizados] = useState<any[]>([]);
-  const [tarefas, setTarefas] = useState<any[]>([]);
-  const [projetos, setProjetos] = useState<any[]>([]);
+  const [terceirizados, setTerceirizados] = useState<Terceirizado[]>([]);
+  const [tarefas, setTarefas] = useState<TarefaComProjetoETerceiro[]>([]);
+  const [projetos, setProjetos] = useState<ProjetoComCliente[]>([]);
   
   // Modals
   const [showPartnerModal, setShowPartnerModal] = useState(false);
@@ -59,9 +59,9 @@ export default function AdminTerceirizadosPage() {
 
       const pData = await getProjetos();
       setProjetos(pData || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Fetch error:', error);
-      alert('Erro ao carregar dados: ' + handleSupabaseError(error.message));
+      alert('Erro ao carregar dados: ' + handleSupabaseError(error));
     } finally {
       setLoading(false);
     }
@@ -84,8 +84,8 @@ export default function AdminTerceirizadosPage() {
         setShowPartnerModal(false);
         setEditingPartner(null);
         fetchData();
-      } catch (error: any) {
-        alert('Erro ao salvar parceiro: ' + handleSupabaseError(error.message));
+      } catch (error) {
+        alert('Erro ao salvar parceiro: ' + handleSupabaseError(error));
       }
     });
   };
@@ -108,8 +108,8 @@ export default function AdminTerceirizadosPage() {
         setEditingTask(null);
         setRoadmapSteps(['']);
         fetchData();
-      } catch (error: any) {
-        alert('Erro ao salvar tarefa: ' + handleSupabaseError(error.message));
+      } catch (error) {
+        alert('Erro ao salvar tarefa: ' + handleSupabaseError(error));
       }
     });
   };
@@ -120,8 +120,8 @@ export default function AdminTerceirizadosPage() {
       try {
         await confirmarPagamento(id);
         fetchData();
-      } catch (error: any) {
-        alert('Erro ao confirmar pagamento: ' + handleSupabaseError(error.message));
+      } catch (error) {
+        alert('Erro ao confirmar pagamento: ' + handleSupabaseError(error));
       }
     });
   };
@@ -132,8 +132,8 @@ export default function AdminTerceirizadosPage() {
       try {
         await aprovarEtapa(id);
         fetchData();
-      } catch (error: any) {
-        alert('Erro ao aprovar: ' + handleSupabaseError(error.message));
+      } catch (error) {
+        alert('Erro ao aprovar: ' + handleSupabaseError(error));
       }
     });
   };
@@ -148,8 +148,8 @@ export default function AdminTerceirizadosPage() {
         setShowRevisionModal(null);
         setRevisionFeedback('');
         fetchData();
-      } catch (error: any) {
-        alert('Erro ao solicitar revisão: ' + handleSupabaseError(error.message));
+      } catch (error) {
+        alert('Erro ao solicitar revisão: ' + handleSupabaseError(error));
       }
     });
   };
@@ -167,8 +167,8 @@ export default function AdminTerceirizadosPage() {
         }
         fetchData();
         setShowDeleteModal(null);
-      } catch (error: any) {
-        alert(`Erro ao excluir: ${handleSupabaseError(error.message)}`);
+      } catch (error) {
+        alert(`Erro ao excluir: ${handleSupabaseError(error)}`);
       }
     });
   };
@@ -327,7 +327,7 @@ export default function AdminTerceirizadosPage() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {tarefas.map((task) => {
-                  const currentStep = task.roadmap_etapas?.[task.etapa_atual_index] || 'Concluído';
+                  const currentStep = (task.roadmap_etapas as string[])?.[task.etapa_atual_index ?? 0] || 'Concluído';
                   const isAwaiting = task.status_etapa_atual === 'Aguardando Aprovação';
                   const isPaid = task.status_pagamento === 'Pago';
 

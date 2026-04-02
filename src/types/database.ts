@@ -217,6 +217,7 @@ export type Database = {
           status_producao: string | null
           terceirizados: string | null
           tipo_servico: string | null
+          token_expires_at: string | null
           updated_at: string | null
           valor_fechado: number | null
           valores_servicos: Json | null
@@ -242,6 +243,7 @@ export type Database = {
           status_producao?: string | null
           terceirizados?: string | null
           tipo_servico?: string | null
+          token_expires_at?: string | null
           updated_at?: string | null
           valor_fechado?: number | null
           valores_servicos?: Json | null
@@ -267,6 +269,7 @@ export type Database = {
           status_producao?: string | null
           terceirizados?: string | null
           tipo_servico?: string | null
+          token_expires_at?: string | null
           updated_at?: string | null
           valor_fechado?: number | null
           valores_servicos?: Json | null

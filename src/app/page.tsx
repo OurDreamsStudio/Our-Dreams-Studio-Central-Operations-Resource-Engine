@@ -9,16 +9,27 @@ export default function DashboardPage() {
   const [clientes, setClientes] = useState<any[]>([]);
   const [projetos, setProjetos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
-      const [ { data: cData }, { data: pData } ] = await Promise.all([
-        supabase.from('clientes').select('*').order('data_entrada', { ascending: false }),
-        supabase.from('projetos').select('*, clientes(nome_artistico, nome_pessoal)')
-      ]);
-      setClientes(cData || []);
-      setProjetos(pData || []);
-      setLoading(false);
+      try {
+        const [ cRes, pRes ] = await Promise.all([
+          supabase.from('clientes').select('*').order('data_entrada', { ascending: false }),
+          supabase.from('projetos').select('*, clientes(nome_artistico, nome_pessoal)')
+        ]);
+
+        if (cRes.error) throw cRes.error;
+        if (pRes.error) throw pRes.error;
+
+        setClientes(cRes.data || []);
+        setProjetos(pRes.data || []);
+      } catch (err: any) {
+        console.error('Erro ao buscar dados:', err);
+        setError(err.message || 'Erro desconhecido ao carregar dashboard');
+      } finally {
+        setLoading(false);
+      }
     }
     fetchData();
   }, []);
@@ -71,6 +82,20 @@ export default function DashboardPage() {
     .slice(0, 3);
 
   if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Carregando dashboard...</div>;
+
+  if (error) {
+    return (
+      <div style={{ padding: '32px 36px', maxWidth: 1200 }} className="fade-up">
+        <div style={{ padding: 24, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 16 }}>
+          <div style={{ color: '#ef4444', fontWeight: 600, fontSize: 16, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Activity size={20} />
+            Erro ao carregar dashboard
+          </div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{error}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '32px 36px', maxWidth: 1200 }} className="fade-up">

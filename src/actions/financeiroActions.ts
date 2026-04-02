@@ -1,6 +1,7 @@
 'use server';
 
 import { supabaseServer } from '@/lib/supabaseServer';
+import { requireAuth } from '@/lib/requireAuth';
 import { revalidatePath } from 'next/cache';
 
 // --- CUSTOS FIXOS CRUD ---
@@ -11,6 +12,8 @@ export async function getCustosFixos() {
 }
 
 export async function saveCustoFixo(id: string | null, data: any) {
+  await requireAuth();
+
   const sanitized = {
     ...data,
     valor: Number(data.valor) || 0,
@@ -29,6 +32,8 @@ export async function saveCustoFixo(id: string | null, data: any) {
 }
 
 export async function deleteCustoFixo(id: string) {
+  await requireAuth();
+
   const { error } = await supabaseServer.from('custos_fixos').delete().eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/admin/financeiro');
@@ -43,6 +48,8 @@ export async function getAtivosHardware() {
 }
 
 export async function saveAtivoHardware(id: string | null, data: any) {
+  await requireAuth();
+
   const sanitized = {
     ...data,
     valor_compra: Number(data.valor_compra) || 0,
@@ -70,7 +77,7 @@ export async function getFinancialIntelligence() {
     { data: custosFixos },
     { data: hardware }
   ] = await Promise.all([
-    supabaseServer.from('projetos').select('valor_fechado, sinal_pago, entrega_paga, cliente_id, clientes(nome_artistico, nome_pessoal)'),
+    supabaseServer.from('projetos').select('valor_fechado, sinal_pago, entrega_paga, cliente_id, created_at, clientes(nome_artistico, nome_pessoal)'),
     supabaseServer.from('tarefas_terceirizados').select('valor_combinado, status_pagamento'),
     supabaseServer.from('custos_fixos').select('valor'),
     supabaseServer.from('ativos_hardware').select('*')
@@ -80,11 +87,22 @@ export async function getFinancialIntelligence() {
   let receitaBrutaTotal = 0;
   let recebiveisProjetos = 0;
   
+  const inicioMesAtual = new Date();
+  inicioMesAtual.setDate(1);
+  inicioMesAtual.setHours(0, 0, 0, 0);
+
+  let receitaMesAtual = 0;
+
   projetos?.forEach(p => {
-    receitaBrutaTotal += Number(p.valor_fechado || 0);
-    // Presumindo que se não está pago, é recebível
-    if (!p.sinal_pago) recebiveisProjetos += (p.valor_fechado * 0.5); // Metade sinal
-    if (!p.entrega_paga) recebiveisProjetos += (p.valor_fechado * 0.5); // Metade entrega
+    const valor = Number(p.valor_fechado || 0);
+    receitaBrutaTotal += valor;
+    if (!p.sinal_pago) recebiveisProjetos += (valor * 0.5);
+    if (!p.entrega_paga) recebiveisProjetos += (valor * 0.5);
+
+    const criadoEm = new Date(p.created_at);
+    if (criadoEm >= inicioMesAtual) {
+      receitaMesAtual += valor;
+    }
   });
 
   // 3. Splits (Repasses)
@@ -126,6 +144,7 @@ export async function getFinancialIntelligence() {
 
   return {
     receitaBrutaTotal,
+    receitaMesAtual,
     recebiveisProjetos,
     totalSplits,
     splitsPendentes,

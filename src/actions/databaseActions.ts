@@ -1,6 +1,7 @@
 'use server';
 
 import { supabaseServer } from '@/lib/supabaseServer';
+import { requireAuth } from '@/lib/requireAuth';
 import { ETAPAS_PRODUCAO } from '@/constants/workflow';
 import { revalidatePath } from 'next/cache';
 import { Projeto, Cliente, Terceirizado, TarefaTerceirizado, Notificacao } from '@/types';
@@ -24,6 +25,8 @@ export async function getClientes() {
 }
 
 export async function saveCliente(id: string | null, clientData: Partial<Cliente>) {
+  await requireAuth();
+
   // 1. Sanitização
   const sanitizedWhatsappId = sanitizeWhatsApp(clientData.whatsapp_id);
   const dataToSave = { ...clientData, whatsapp_id: sanitizedWhatsappId };
@@ -64,6 +67,8 @@ export async function saveCliente(id: string | null, clientData: Partial<Cliente
 }
 
 export async function deleteCliente(id: string) {
+  await requireAuth();
+
   const { error } = await supabaseServer
     .from('clientes')
     .delete()
@@ -86,6 +91,8 @@ export async function getProjetos() {
 }
 
 export async function saveProjeto(id: string | null, projectData: Partial<Projeto>, splitsTerceiros?: any[]) {
+  await requireAuth();
+
   // Robustness: ensure numeric fields and clean status
   const dataToSave: any = { 
     nome: projectData.nome || null,
@@ -207,6 +214,8 @@ export async function getProjetoCompleto(id: string) {
 }
 
 export async function updateProjectDeadline(id: string, deadline: string) {
+  await requireAuth();
+
   const { error } = await supabaseServer
     .from('projetos')
     .update({ prazo_entrega: deadline })
@@ -223,6 +232,8 @@ export async function updateProjectDeadline(id: string, deadline: string) {
  * Critério: status_producao IS NULL E não estão marcados como 'Fechado'
  */
 export async function faxinaProjetosFantasmas() {
+  await requireAuth();
+
   const { data: deleted, error } = await supabaseServer
     .from('projetos')
     .delete()
@@ -245,6 +256,8 @@ export async function faxinaProjetosFantasmas() {
 }
 
 export async function deleteProjeto(id: string) {
+  await requireAuth();
+
   const { error } = await supabaseServer.from('projetos').delete().eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/admin/database');

@@ -26,11 +26,27 @@ const MONTH_NAMES = [
 
 const DAYS_OF_WEEK = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
+export interface AgendaEvent {
+  id: string;
+  type: string;
+  title: string;
+  prazo_entrega: string;
+  status_producao: string;
+  projeto_id?: string;
+  // Extra properties that might be on the fetched object
+  nome?: string | null;
+  servicos_fechados?: any;
+  tipo_servico?: string | null;
+  descricao_tarefa?: string | null;
+  status_entrega?: string | null;
+}
+
 export default function AgendaPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [projetos, setProjetos] = useState<any[]>([]);
+  const [projetos, setProjetos] = useState<AgendaEvent[]>([]);
   const [alertedIds, setAlertedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const fetchData = async () => {
@@ -41,8 +57,9 @@ export default function AgendaPage() {
       ]);
       setProjetos(data || []);
       setAlertedIds((alerts as string[]) || []);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      console.error('Erro ao buscar dados:', e);
+      setError(e.message || 'Erro desconhecido ao carregar agenda');
     } finally {
       setLoading(false);
     }
@@ -87,6 +104,20 @@ export default function AgendaPage() {
     return (
       <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Loader2 className="animate-spin text-accent" size={40} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+        <div style={{ padding: 24, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 16 }}>
+          <div style={{ color: '#ef4444', fontWeight: 600, fontSize: 16, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AlertCircle size={20} />
+            Erro de Carregamento
+          </div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{error}</div>
+        </div>
       </div>
     );
   }
@@ -229,7 +260,7 @@ export default function AgendaPage() {
                            </Link>
                         </div>
                         <div style={{ fontSize: 8, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>{p.status_Producao || p.status_producao}</span>
+                          <span>{p.status_producao}</span>
                           {isAlerted && <AlertCircle size={8} style={{ color: '#ef4444' }} />}
                           {p.status_producao === 'Entregue' && <CheckCircle2 size={8} style={{ color: 'var(--green)' }} />}
                         </div>

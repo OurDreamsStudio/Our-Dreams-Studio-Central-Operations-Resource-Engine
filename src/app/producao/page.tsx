@@ -72,6 +72,9 @@ export default function ProducaoPage() {
   }, []);
 
   const handleToggleChecklist = async (projectId: string, itemIndex: number, newValue: boolean) => {
+    // Snapshot do estado anterior para rollback
+    const snapshot = projetos;
+
     // Optimistic UI update
     setProjetos(prev => prev.map(p => {
       if (p.id !== projectId || !p.checklist_preparacao) return p;
@@ -87,13 +90,17 @@ export default function ProducaoPage() {
     const newChecklist = [...project.checklist_preparacao];
     newChecklist[itemIndex] = { ...newChecklist[itemIndex], done: newValue };
 
-    const { error } = await supabase
-      .from('projetos')
-      .update({ checklist_preparacao: newChecklist })
-      .eq('id', projectId);
+    try {
+      const { error } = await supabase
+        .from('projetos')
+        .update({ checklist_preparacao: newChecklist })
+        .eq('id', projectId);
 
-    if (error) {
-      console.error('Failed to update checklist:', error);
+      if (error) throw error;
+    } catch (err) {
+      console.error('Failed to update checklist, reverting:', err);
+      setProjetos(snapshot); // Rollback
+      alert('Erro ao atualizar checklist. A alteração foi revertida.');
     }
   };
 
@@ -116,6 +123,9 @@ export default function ProducaoPage() {
       return;
     }
 
+    // Snapshot do estado anterior para rollback
+    const snapshot = projetos;
+
     // Optimistic Update
     setProjetos((prev) =>
       prev.map((p) => (p.id === dragging ? { ...p, status_producao: colId } : p))
@@ -125,13 +135,19 @@ export default function ProducaoPage() {
     setDragging(null);
     setOverCol(null);
 
-    const { error } = await supabase
-      .from('projetos')
-      .update({ status_producao: colId })
-      .eq('id', projectId);
-      
-    if (error) console.error('Failed to update producao status:', error);
-  }, [dragging]);
+    try {
+      const { error } = await supabase
+        .from('projetos')
+        .update({ status_producao: colId })
+        .eq('id', projectId);
+        
+      if (error) throw error;
+    } catch (err) {
+      console.error('Failed to update producao status, reverting:', err);
+      setProjetos(snapshot); // Rollback
+      alert('Erro ao atualizar posição. A alteração foi revertida.');
+    }
+  }, [dragging, projetos]);
 
   const handleDragEnd = useCallback(() => {
     setDragging(null);

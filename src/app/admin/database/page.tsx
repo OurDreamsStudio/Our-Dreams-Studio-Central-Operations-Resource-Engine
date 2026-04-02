@@ -22,7 +22,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { ETAPAS_VENDAS, ETAPAS_PRODUCAO, SERVICOS, getStatusTheme } from '@/constants/workflow';
-import { Cliente, Projeto, Terceirizado } from '@/types';
+import { Cliente, Projeto, ProjetoComCliente, Terceirizado } from '@/types';
 import { StandardModal } from '@/components/StandardModal';
 import { handleSupabaseError, formatCurrency, formatDate } from '@/lib/utils';
 
@@ -48,8 +48,8 @@ export default function AdminDatabasePage() {
   const [isPending, startTransition] = useTransition();
   
   // Data
-  const [clientes, setClientes] = useState<any[]>([]);
-  const [projetos, setProjetos] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [projetos, setProjetos] = useState<ProjetoComCliente[]>([]);
   
   // Modals
   const [showClientModal, setShowClientModal] = useState(false);
@@ -321,59 +321,63 @@ export default function AdminDatabasePage() {
                 <tr>
                   <td colSpan={5} style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)' }}>Nenhum registro encontrado.</td>
                 </tr>
-              ) : (activeTab === 'clientes' ? clientes : projetos).map((item) => (
+              ) : (activeTab === 'clientes' ? clientes : projetos).map((item) => {
+                const isCliente = activeTab === 'clientes';
+                const c = item as Cliente;
+                const p = item as ProjetoComCliente;
+                return (
                 <tr key={item.id} className="table-row" style={{ borderBottom: '1px solid var(--border)', transition: '0.2s' }}>
                   <td style={{ padding: '16px 24px' }}>
                     <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {activeTab === 'clientes' 
-                        ? (item.nome_artistico || item.nome_pessoal) 
-                        : (item.nome || item.servicos_fechados || item.tipo_servico || 'Sem Nome')}
+                      {isCliente 
+                        ? (c.nome_artistico || c.nome_pessoal) 
+                        : (p.nome || p.servicos_fechados || p.tipo_servico || 'Sem Nome')}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ID: {item.id.substring(0,8)}...</div>
                   </td>
                   <td style={{ padding: '16px 24px' }}>
-                    {activeTab === 'clientes' ? (
-                      <div>{item.telefone || '--'}</div>
+                    {isCliente ? (
+                      <div>{c.telefone || '--'}</div>
                     ) : (
-                      <div style={{ fontWeight: 600 }}>{item.clientes?.nome_artistico || item.clientes?.nome_pessoal || 'Desconhecido'}</div>
+                      <div style={{ fontWeight: 600 }}>{p.clientes?.nome_artistico || p.clientes?.nome_pessoal || 'Desconhecido'}</div>
                     )}
                   </td>
                   <td style={{ padding: '16px 24px' }}>
-                    {activeTab === 'clientes' ? (
-                      <div style={{ fontSize: 13 }}>{item.email || '--'}</div>
+                    {isCliente ? (
+                      <div style={{ fontSize: 13 }}>{c.email || '--'}</div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         <span style={{ 
                           fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, width: 'fit-content',
-                          background: getStatusTheme(item.status_funil).bg, color: getStatusTheme(item.status_funil).text,
-                          border: `1px solid ${getStatusTheme(item.status_funil).border}`
+                          background: getStatusTheme(p.status_funil).bg, color: getStatusTheme(p.status_funil).text,
+                          border: `1px solid ${getStatusTheme(p.status_funil).border}`
                         }}>
-                          FUNIL: {item.status_funil}
+                          FUNIL: {p.status_funil}
                         </span>
-                        {item.status_producao && (
+                        {p.status_producao && (
                           <span style={{ 
                             fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, width: 'fit-content',
-                            background: getStatusTheme(item.status_producao).bg, color: getStatusTheme(item.status_producao).text,
-                            border: `1px solid ${getStatusTheme(item.status_producao).border}`
+                            background: getStatusTheme(p.status_producao).bg, color: getStatusTheme(p.status_producao).text,
+                            border: `1px solid ${getStatusTheme(p.status_producao).border}`
                           }}>
-                            PROD: {item.status_producao}
+                            PROD: {p.status_producao}
                           </span>
                         )}
                       </div>
                     )}
                   </td>
                   <td style={{ padding: '16px 24px' }}>
-                    {activeTab === 'clientes' ? (
+                    {isCliente ? (
                       <div style={{ color: 'var(--text-secondary)' }}>
-                        {formatDate(item.data_entrada)}
+                        {formatDate(c.data_entrada)}
                       </div>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <div style={{ fontWeight: 700, color: 'var(--green)' }}>
-                          {formatCurrency(item.valor_fechado || 0)}
+                          {formatCurrency(p.valor_fechado || 0)}
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                          Prazo: {formatDate(item.prazo_entrega)}
+                          Prazo: {formatDate(p.prazo_entrega)}
                         </div>
                       </div>
                     )}
@@ -381,7 +385,7 @@ export default function AdminDatabasePage() {
                   <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                       <button 
-                        onClick={() => activeTab === 'clientes' ? openEditClient(item) : openEditProject(item)}
+                        onClick={() => isCliente ? openEditClient(c) : openEditProject(p)}
                         disabled={isPending}
                         style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)', color: 'var(--accent-light)', padding: 6, borderRadius: 6, cursor: 'pointer', opacity: isPending ? 0.5 : 1 }}
                       >
@@ -397,7 +401,7 @@ export default function AdminDatabasePage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
@@ -667,8 +671,8 @@ export default function AdminDatabasePage() {
                   })()}
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Mão de Obra: R$ {selectedTerceiros.reduce((acc, id) => acc + (terceirosData[id]?.valor || 0), 0).toLocaleString('pt-BR')}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Venda Bruta: R$ {Object.values(modalPrecos).reduce((acc, v) => acc + Number(v || 0), 0).toLocaleString('pt-BR')}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Mão de Obra: {formatCurrency(selectedTerceiros.reduce((acc, id) => acc + (terceirosData[id]?.valor || 0), 0))}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Venda Bruta: {formatCurrency(Object.values(modalPrecos).reduce((acc, v) => acc + Number(v || 0), 0))}</div>
                 </div>
               </div>
 
@@ -678,7 +682,7 @@ export default function AdminDatabasePage() {
                   padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.03)',
                   border: '1px solid var(--border)', color: 'var(--green)', fontWeight: 700, fontSize: 16
                 }}>
-                   R$ {formatCurrency(Object.values(modalPrecos).reduce((acc, v) => acc + Number(v || 0), 0))}
+                   {formatCurrency(Object.values(modalPrecos).reduce((acc, v) => acc + Number(v || 0), 0))}
                  </div>
               </div>
 

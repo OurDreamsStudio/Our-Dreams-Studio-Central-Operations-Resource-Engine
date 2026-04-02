@@ -17,23 +17,48 @@ export default function ClientesPage() {
   const [projetos, setProjetos] = useState<any[]>([]);
   const [n8nEstados, setN8nEstados] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
-      const [ { data: cData }, { data: pData }, { data: nData } ] = await Promise.all([
-        supabase.from('clientes').select('*').order('nome_artistico', { ascending: true }),
-        supabase.from('projetos').select('*'),
-        supabase.from('n8n_estado').select('*')
-      ]);
-      setClientes(cData || []);
-      setProjetos(pData || []);
-      setN8nEstados(nData || []);
-      setLoading(false);
+      try {
+        const [ cRes, pRes, nRes ] = await Promise.all([
+          supabase.from('clientes').select('*').order('nome_artistico', { ascending: true }),
+          supabase.from('projetos').select('*'),
+          supabase.from('n8n_estado').select('*')
+        ]);
+
+        if (cRes.error) throw cRes.error;
+        if (pRes.error) throw pRes.error;
+        if (nRes.error) throw nRes.error;
+
+        setClientes(cRes.data || []);
+        setProjetos(pRes.data || []);
+        setN8nEstados(nRes.data || []);
+      } catch (err: any) {
+        console.error('Erro ao buscar dados:', err);
+        setError(err.message || 'Erro desconhecido ao carregar clientes');
+      } finally {
+        setLoading(false);
+      }
     }
     fetchData();
   }, []);
 
   if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Carregando clientes...</div>;
+
+  if (error) {
+    return (
+      <div style={{ padding: '32px 36px', maxWidth: 1100 }} className="fade-up">
+        <div style={{ padding: 24, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 16 }}>
+          <div style={{ color: '#ef4444', fontWeight: 600, fontSize: 16, marginBottom: 8 }}>
+            Erro de Carregamento
+          </div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{error}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '32px 36px', maxWidth: 1100 }} className="fade-up">

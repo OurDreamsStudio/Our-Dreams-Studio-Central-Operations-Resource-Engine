@@ -26,10 +26,17 @@ export default function Header() {
 
   useEffect(() => {
     fetchNotifications();
-    // Vigilância automática no mount
-    runVigilanceEngine().then(fetchNotifications).catch(console.error);
-    
-    // Polling rítmico a cada 2 minutos
+
+    const THROTTLE_KEY = 'ods_vigilance_last_run';
+    const THROTTLE_MS = 1000 * 60 * 10; // 10 minutos
+    const lastRun = Number(localStorage.getItem(THROTTLE_KEY) || 0);
+    const now = Date.now();
+
+    if (now - lastRun > THROTTLE_MS) {
+      localStorage.setItem(THROTTLE_KEY, String(now));
+      runVigilanceEngine().then(fetchNotifications).catch(console.error);
+    }
+
     const interval = setInterval(fetchNotifications, 1000 * 60 * 2);
     return () => clearInterval(interval);
   }, []);
