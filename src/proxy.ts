@@ -49,7 +49,7 @@ export async function proxy(request: NextRequest) {
   // Redirect from login if already logged in
   if (user && request.nextUrl.pathname.startsWith('/login')) {
       const url = request.nextUrl.clone()
-      url.pathname = '/'
+      url.pathname = '/dashboard'
       return NextResponse.redirect(url)
   }
 

@@ -26,7 +26,7 @@ export default function Sidebar() {
   }, []);
 
   const links = [
-    { href: '/',        label: 'Dashboard',  icon: <LayoutDashboard size={18} /> },
+    { href: '/dashboard', label: 'Dashboard',  icon: <LayoutDashboard size={18} /> },
     { href: '/admin/agenda', label: 'Agenda',   icon: <Calendar size={18} /> },
     { href: '/kanban',  label: 'Vendas',     icon: <Kanban size={18} /> },
     { href: '/producao',label: 'Produção',   icon: <Briefcase size={18} /> },
@@ -116,15 +116,44 @@ export default function Sidebar() {
           padding: '12px 10px',
           borderTop: '1px solid var(--border)',
           marginTop: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12
         }}
       >
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div className="pulse-dot" style={{ background: 'var(--green)' }} />
-          n8n conectado
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="pulse-dot" style={{ background: 'var(--green)' }} />
+            n8n conectado
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+            v0.4.1 — EFI · Phase 3
+          </div>
         </div>
-        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-          v0.4.1 — EFI · Phase 3
-        </div>
+        
+        <form action="/api/auth/logout" method="POST">
+           <button 
+             type="submit"
+             style={{ 
+               width: '100%', 
+               background: 'rgba(239, 68, 68, 0.1)', 
+               border: '1px solid rgba(239, 68, 68, 0.2)', 
+               color: '#ef4444', 
+               padding: '8px 0', 
+               borderRadius: 8, 
+               fontSize: 12, 
+               fontWeight: 600,
+               cursor: 'pointer',
+               display: 'flex',
+               alignItems: 'center',
+               justifyContent: 'center',
+               gap: 6
+             }}
+             className="hover:bg-red-500/20 transition-colors"
+           >
+             Encerrar Sessão
+           </button>
+        </form>
       </div>
     </aside>
   );
