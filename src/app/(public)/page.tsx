@@ -52,59 +52,77 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Producer Card 1 */}
-            <div className={`rounded-3xl p-6 ${glassClasses} flex flex-col gap-6 transition-transform hover:-translate-y-1 duration-300`}>
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full border-2 border-white shadow-sm overflow-hidden flex-shrink-0">
-                  <img src="equipe/matheus.JPEG" alt="Foto Matheus" className="w-full h-full object-cover" />
+            {/* Producer Card 1: Maq */}
+            <a 
+              href="https://open.spotify.com/playlist/7yKZXUeUSOUvbmvnAsEu2Z?si=0wGSZB4XT5Sxa8Jv3pLZBg" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className={`group rounded-[2rem] p-8 ${glassClasses} flex flex-col items-center text-center gap-6 transition-all hover:-translate-y-2 duration-300 hover:shadow-2xl hover:shadow-[#460362]/5`}
+            >
+              <div className="relative">
+                <div className="w-24 h-24 rounded-full border-2 border-white shadow-md overflow-hidden ring-4 ring-[#460362]/5 group-hover:ring-[#460362]/10 transition-all">
+                  <img src="equipe/maq.jpg" alt="Foto Maq" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-neutral-900">Matheus</h3>
-                  <p className="text-sm text-[#460362] font-medium">Engenheiro de Áudio/Produtor Musical</p>
+                <div className="absolute -bottom-1 -right-1 bg-[#1DB954] p-1.5 rounded-full shadow-sm">
+                  <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.84.241 1.2zM20.16 9.6C15.84 7.08 9.24 6.9 5.4 8.04c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38 4.32-1.32 11.52-1.14 16.32 1.68.54.3 0.72 1.02.42 1.56-.3.54-1.02.66-1.5.42z" /></svg>
                 </div>
               </div>
-              <div className="w-full aspect-square rounded-2xl bg-neutral-100/50 border border-neutral-200/50 flex flex-col items-center justify-center text-neutral-400 p-6 text-center">
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 mb-3 opacity-50"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.84.241 1.2zM20.16 9.6C15.84 7.08 9.24 6.9 5.4 8.04c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38 4.32-1.32 11.52-1.14 16.32 1.68.54.3 0.72 1.02.42 1.56-.3.54-1.02.66-1.5.42z" /></svg>
-                <span className="text-sm font-medium">Spotify Player Integration</span>
-                <span className="text-xs mt-1">Playlist Showcase</span>
+              <div>
+                <h3 className="text-xl font-bold text-neutral-900 group-hover:text-[#460362] transition-colors">Maq</h3>
+                <p className="text-sm text-neutral-500 font-medium">Produtor Musical / Beatmaker</p>
               </div>
-            </div>
+              <div className="w-full py-3 rounded-xl bg-[#460362]/5 text-[#460362] font-bold text-sm tracking-wide group-hover:bg-[#460362] group-hover:text-white transition-all flex items-center justify-center gap-2">
+                Ouvir Portfólio
+              </div>
+            </a>
 
-            {/* Producer Card 2 */}
-            <div className={`rounded-3xl p-6 ${glassClasses} flex flex-col gap-6 transition-transform hover:-translate-y-1 duration-300`}>
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full border-2 border-white shadow-sm overflow-hidden flex-shrink-0">
-                  <img src="equipe/maq.jpg" alt="Foto Maq" className="w-full h-full object-cover" />
+            {/* Producer Card 2: Matheus */}
+            <a 
+              href="https://open.spotify.com/playlist/6cPwdOnqVtzrFXzwYmfOsK?si=KdwbWDr3QsmTQ4hRkQmNww&pi=fFrHxJhnQze8h" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className={`group rounded-[2rem] p-8 ${glassClasses} flex flex-col items-center text-center gap-6 transition-all hover:-translate-y-2 duration-300 hover:shadow-2xl hover:shadow-[#460362]/5`}
+            >
+              <div className="relative">
+                <div className="w-24 h-24 rounded-full border-2 border-white shadow-md overflow-hidden ring-4 ring-[#460362]/5 group-hover:ring-[#460362]/10 transition-all">
+                  <img src="equipe/matheus.JPEG" alt="Foto Matheus" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-neutral-900">Maq</h3>
-                  <p className="text-sm text-[#460362] font-medium">Produtor Musical/Beatmaker</p>
+                <div className="absolute -bottom-1 -right-1 bg-[#1DB954] p-1.5 rounded-full shadow-sm">
+                  <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.84.241 1.2zM20.16 9.6C15.84 7.08 9.24 6.9 5.4 8.04c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38 4.32-1.32 11.52-1.14 16.32 1.68.54.3 0.72 1.02.42 1.56-.3.54-1.02.66-1.5.42z" /></svg>
                 </div>
               </div>
-              <div className="w-full aspect-square rounded-2xl bg-neutral-100/50 border border-neutral-200/50 flex flex-col items-center justify-center text-neutral-400 p-6 text-center">
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 mb-3 opacity-50"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.84.241 1.2zM20.16 9.6C15.84 7.08 9.24 6.9 5.4 8.04c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38 4.32-1.32 11.52-1.14 16.32 1.68.54.3 0.72 1.02.42 1.56-.3.54-1.02.66-1.5.42z" /></svg>
-                <span className="text-sm font-medium">Spotify Player Integration</span>
-                <span className="text-xs mt-1">Playlist Showcase</span>
+              <div>
+                <h3 className="text-xl font-bold text-neutral-900 group-hover:text-[#460362] transition-colors">Matheus</h3>
+                <p className="text-sm text-neutral-500 font-medium">Engenheiro de Áudio / Produtor</p>
               </div>
-            </div>
+              <div className="w-full py-3 rounded-xl bg-[#460362]/5 text-[#460362] font-bold text-sm tracking-wide group-hover:bg-[#460362] group-hover:text-white transition-all flex items-center justify-center gap-2">
+                Ouvir Portfólio
+              </div>
+            </a>
 
-            {/* Producer Card 3 */}
-            <div className={`rounded-3xl p-6 ${glassClasses} flex flex-col gap-6 transition-transform hover:-translate-y-1 duration-300 md:col-span-2 lg:col-span-1`}>
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full border-2 border-white shadow-sm overflow-hidden flex-shrink-0">
-                  <img src="equipe/seven.jpg" alt="Foto S7ven" className="w-full h-full object-cover" />
+            {/* Producer Card 3: S7ven */}
+            <a 
+              href="https://open.spotify.com/playlist/5gByD4m5I10mym8jNIDT6B?si=Q7LGoreZR7KHPHhs2zqiTQ" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className={`group rounded-[2rem] p-8 ${glassClasses} flex flex-col items-center text-center gap-6 transition-all hover:-translate-y-2 duration-300 hover:shadow-2xl hover:shadow-[#460362]/5 md:col-span-2 lg:col-span-1`}
+            >
+              <div className="relative">
+                <div className="w-24 h-24 rounded-full border-2 border-white shadow-md overflow-hidden ring-4 ring-[#460362]/5 group-hover:ring-[#460362]/10 transition-all">
+                  <img src="equipe/seven.jpg" alt="Foto S7ven" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-neutral-900">S7ven</h3>
-                  <p className="text-sm text-[#460362] font-medium">Produtor Musical</p>
+                <div className="absolute -bottom-1 -right-1 bg-[#1DB954] p-1.5 rounded-full shadow-sm">
+                  <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.84.241 1.2zM20.16 9.6C15.84 7.08 9.24 6.9 5.4 8.04c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38 4.32-1.32 11.52-1.14 16.32 1.68.54.3 0.72 1.02.42 1.56-.3.54-1.02.66-1.5.42z" /></svg>
                 </div>
               </div>
-              <div className="w-full aspect-square rounded-2xl bg-neutral-100/50 border border-neutral-200/50 flex flex-col items-center justify-center text-neutral-400 p-6 text-center">
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 mb-3 opacity-50"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.84.241 1.2zM20.16 9.6C15.84 7.08 9.24 6.9 5.4 8.04c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38 4.32-1.32 11.52-1.14 16.32 1.68.54.3 0.72 1.02.42 1.56-.3.54-1.02.66-1.5.42z" /></svg>
-                <span className="text-sm font-medium">Spotify Player Integration</span>
-                <span className="text-xs mt-1">Playlist Showcase</span>
+              <div>
+                <h3 className="text-xl font-bold text-neutral-900 group-hover:text-[#460362] transition-colors">S7ven</h3>
+                <p className="text-sm text-neutral-500 font-medium">Produtor Musical</p>
               </div>
-            </div>
+              <div className="w-full py-3 rounded-xl bg-[#460362]/5 text-[#460362] font-bold text-sm tracking-wide group-hover:bg-[#460362] group-hover:text-white transition-all flex items-center justify-center gap-2">
+                Ouvir Portfólio
+              </div>
+            </a>
           </div>
         </section>
 
