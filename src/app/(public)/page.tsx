@@ -53,9 +53,9 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Producer Card 1: Maq */}
-            <a 
-              href="https://open.spotify.com/playlist/7yKZXUeUSOUvbmvnAsEu2Z?si=0wGSZB4XT5Sxa8Jv3pLZBg" 
-              target="_blank" 
+            <a
+              href="https://open.spotify.com/playlist/7yKZXUeUSOUvbmvnAsEu2Z?si=0wGSZB4XT5Sxa8Jv3pLZBg"
+              target="_blank"
               rel="noopener noreferrer"
               className={`group rounded-[2rem] p-8 ${glassClasses} flex flex-col items-center text-center gap-6 transition-all hover:-translate-y-2 duration-300 hover:shadow-2xl hover:shadow-[#460362]/5`}
             >
@@ -77,9 +77,9 @@ export default function LandingPage() {
             </a>
 
             {/* Producer Card 2: Matheus */}
-            <a 
-              href="https://open.spotify.com/playlist/6cPwdOnqVtzrFXzwYmfOsK?si=KdwbWDr3QsmTQ4hRkQmNww&pi=fFrHxJhnQze8h" 
-              target="_blank" 
+            <a
+              href="https://open.spotify.com/playlist/6cPwdOnqVtzrFXzwYmfOsK?si=KdwbWDr3QsmTQ4hRkQmNww&pi=fFrHxJhnQze8h"
+              target="_blank"
               rel="noopener noreferrer"
               className={`group rounded-[2rem] p-8 ${glassClasses} flex flex-col items-center text-center gap-6 transition-all hover:-translate-y-2 duration-300 hover:shadow-2xl hover:shadow-[#460362]/5`}
             >
@@ -101,9 +101,9 @@ export default function LandingPage() {
             </a>
 
             {/* Producer Card 3: S7ven */}
-            <a 
-              href="https://open.spotify.com/playlist/5gByD4m5I10mym8jNIDT6B?si=Q7LGoreZR7KHPHhs2zqiTQ" 
-              target="_blank" 
+            <a
+              href="https://open.spotify.com/playlist/5gByD4m5I10mym8jNIDT6B?si=Q7LGoreZR7KHPHhs2zqiTQ"
+              target="_blank"
               rel="noopener noreferrer"
               className={`group rounded-[2rem] p-8 ${glassClasses} flex flex-col items-center text-center gap-6 transition-all hover:-translate-y-2 duration-300 hover:shadow-2xl hover:shadow-[#460362]/5 md:col-span-2 lg:col-span-1`}
             >
