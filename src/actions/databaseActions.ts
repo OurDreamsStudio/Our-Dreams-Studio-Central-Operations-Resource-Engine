@@ -32,7 +32,7 @@ const ProjetoSaveSchema = z.object({
   prazo_entrega: z.string().optional().nullable(),
   link_arquivos: z.string().url('URL inválida para link_arquivos').optional().nullable(),
   servicos_fechados: z.array(z.string()).optional().nullable(),
-  valores_servicos: z.record(z.coerce.number()).optional().nullable(),
+  valores_servicos: z.record(z.string(), z.coerce.number()).optional().nullable(),
   cupom_usado: z.string().max(50).optional().nullable(),
 });
 
