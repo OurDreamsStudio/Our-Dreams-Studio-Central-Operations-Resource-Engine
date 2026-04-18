@@ -107,6 +107,7 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
         setProjetos([createdProj, ...projetos]);
         setShowUpsell(false);
         setUpsellData({ servicosSelecionados: [], valor_fechado: '', prazo_entrega: '', terceirizados: '' });
+        router.refresh();
       }
     } catch (error: any) {
       console.error('Failed to create upsell project:', error.message);

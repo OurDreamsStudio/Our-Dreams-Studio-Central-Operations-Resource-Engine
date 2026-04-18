@@ -3,6 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
 import Link from 'next/link';
 import { Disc, DollarSign, X, Check, Tag, AlertCircle, Link as LinkIcon, Share2 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -32,6 +34,8 @@ export default function KanbanPage() {
   const [loading, setLoading] = useState(true);
 
   const [dragging, setDragging] = useState<string | null>(null);
+  const router = useRouter();
+
   const [overCol, setOverCol] = useState<FunilStatus | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -96,7 +100,9 @@ export default function KanbanPage() {
     // Persiste no banco usando Server Action
     try {
       await moverClienteFunil(projectId, colId);
+      router.refresh();
     } catch (err: any) {
+
       console.error('Failed to update status, reverting:', err);
       setProjetos(snapshot); // Rollback
       alert('Erro ao atualizar posição: ' + err.message);
@@ -156,7 +162,9 @@ export default function KanbanPage() {
       await fecharProjetoNoKanban(closingProject, projectData);
       setProjetos((prev) => prev.filter((p) => p.id !== closingProject));
       handleCloseModal();
+      router.refresh();
     } catch (err: any) {
+
       console.error('Failed to create project:', err);
       alert('Erro ao criar projeto: ' + err.message);
     } finally {

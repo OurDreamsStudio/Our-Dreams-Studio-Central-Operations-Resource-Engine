@@ -3,6 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
 import Link from 'next/link';
 import { Disc, DollarSign, Calendar, Users, X, CheckCircle, Link as LinkIcon, Check, Settings } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -37,7 +39,9 @@ function isDateLateOrToday(dateString: string | null) {
 export default function ProducaoPage() {
   const [projetos, setProjetos] = useState<any[]>([]);
   const { scrollRef, isScrolling, events } = useGrabScroll();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
+
 
   const [dragging, setDragging] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<ProducaoStatus | null>(null);
@@ -128,7 +132,9 @@ export default function ProducaoPage() {
 
     try {
       await updateProjetoStatusProducao(projectId, colId);
+      router.refresh();
     } catch (err: any) {
+
       console.error('Failed to update producao status, reverting:', err);
       setProjetos(snapshot); // Rollback
       alert('Erro ao atualizar posição: ' + err.message);
@@ -171,7 +177,9 @@ export default function ProducaoPage() {
       await updateProjetoLinkArquivos(settingsProject.id, linkInput);
       setProjetos(prev => prev.map(p => p.id === settingsProject.id ? { ...p, link_arquivos: linkInput } : p));
       handleCloseSettings();
+      router.refresh();
     } catch (error) {
+
       console.error('Error saving settings:', error);
       alert('Erro ao salvar configurações.');
     } finally {
@@ -194,6 +202,8 @@ export default function ProducaoPage() {
         } : p))
       );
       handleCloseDeliveryModal();
+      router.refresh();
+
     } catch (error) {
       console.error('Error delivering project:', error);
       alert('Erro ao confirmar entrega.');

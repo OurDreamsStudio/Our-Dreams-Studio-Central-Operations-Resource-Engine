@@ -108,6 +108,8 @@ export default function AdminDatabasePage() {
         setShowClientModal(false);
         setEditingClient(null);
         fetchData();
+        router.refresh();
+
       } catch (error) {
         console.error('Save client error:', error);
         alert('Erro na API: ' + handleSupabaseError(error as any));
@@ -162,6 +164,8 @@ export default function AdminDatabasePage() {
         setSelectedTerceiros([]);
         setTerceirosData({});
         fetchData();
+        router.refresh();
+
       } catch (error) {
         console.error('Save project error:', error);
         alert('Erro ao salvar projeto: ' + handleSupabaseError(error));

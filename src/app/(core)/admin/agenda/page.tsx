@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -48,6 +50,8 @@ export default function AgendaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+
 
   const fetchData = async () => {
     try {
@@ -94,10 +98,12 @@ export default function AgendaPage() {
       try {
         await updateProjectDeadline(projectId, dayStr);
         fetchData();
+        router.refresh();
       } catch (err: any) {
         alert('Erro ao atualizar prazo: ' + err.message);
       }
     });
+
   };
 
   if (loading) {
