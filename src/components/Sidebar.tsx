@@ -2,19 +2,23 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Kanban, Users, Briefcase, Database, UserCheck, DollarSign, Calendar } from 'lucide-react';
+import { LayoutDashboard, Kanban, Users, Briefcase, Database, UserCheck, DollarSign, Calendar, Inbox } from 'lucide-react';
 import { getCountPendingApprovals } from '@/actions/terceirizadosActions';
+import { getLeads } from '@/actions/leadsActions';
 import { Projeto, Cliente, Terceirizado, TarefaTerceirizado, Notificacao } from '@/types';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [pendingCount, setPendingCount] = useState(0);
+  const [leadsCount, setLeadsCount] = useState(0);
 
   useEffect(() => {
     const fetchCount = async () => {
       try {
         const count = await getCountPendingApprovals();
         setPendingCount(count);
+        const leads = await getLeads();
+        setLeadsCount((leads || []).filter((l: any) => !l.lido).length);
       } catch (e) {
         console.error('Error fetching badge count:', e);
       }
@@ -37,6 +41,12 @@ export default function Sidebar() {
       badge: pendingCount > 0 ? pendingCount : null
     },
     { href: '/clientes',label: 'Clientes',   icon: <UserCheck size={18} /> },
+    {
+      href: '/admin/leads',
+      label: 'Leads',
+      icon: <Inbox size={18} />,
+      badge: leadsCount > 0 ? leadsCount : null
+    },
     { href: '/admin/financeiro', label: 'Financeiro', icon: <DollarSign size={18} /> },
     { href: '/admin/database', label: 'Gestão/Admin', icon: <Database size={18} /> },
   ];
