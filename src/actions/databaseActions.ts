@@ -22,18 +22,23 @@ const ClienteSchema = z.object({
   diag_capacidade_investimento: z.string().optional().nullable(),
 }).passthrough(); // passthrough para campos extras da interface (sem injeção)
 
+// Helper: converte string vazia em null (campos opcionais de formulário HTML sempre enviam "")
+const emptyStringToNull = z.string().transform(v => v.trim() === '' ? null : v).nullable().optional();
+const optionalUrl = z.string().transform(v => v.trim() === '' ? null : v).nullable().optional()
+  .refine(v => v === null || v === undefined || /^https?:\/\/.+/.test(v), { message: 'URL inválida para link_arquivos' });
+
 const ProjetoSaveSchema = z.object({
-  nome: z.string().max(255).optional().nullable(),
+  nome: emptyStringToNull,
   cliente_id: z.string().uuid('cliente_id inválido'),
-  tipo_servico: z.string().max(100).optional().nullable(),
-  status_funil: z.string().max(100).optional().nullable(),
+  tipo_servico: emptyStringToNull,
+  status_funil: emptyStringToNull,
   valor_fechado: z.coerce.number().min(0).max(9999999).default(0),
-  status_producao: z.string().max(100).optional().nullable(),
-  prazo_entrega: z.string().optional().nullable(),
-  link_arquivos: z.string().url('URL inválida para link_arquivos').optional().nullable(),
+  status_producao: emptyStringToNull,
+  prazo_entrega: emptyStringToNull,
+  link_arquivos: optionalUrl,
   servicos_fechados: z.array(z.string()).optional().nullable(),
   valores_servicos: z.record(z.string(), z.coerce.number()).optional().nullable(),
-  cupom_usado: z.string().max(50).optional().nullable(),
+  cupom_usado: emptyStringToNull,
 });
 
 const CustoFixoSchema = z.object({
