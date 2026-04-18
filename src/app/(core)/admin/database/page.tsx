@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useTransition, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Users, 
   Briefcase, 
@@ -46,8 +47,10 @@ export default function AdminDatabasePage() {
   const [activeTab, setActiveTab] = useState<Tab>('clientes');
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   
   // Data
+
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [projetos, setProjetos] = useState<ProjetoComCliente[]>([]);
   

@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     // Garante que cada navegação re-executa useEffect e busca dados frescos.
     staleTimes: {
       dynamic: 0, // páginas dinâmicas: sem cache
-      static: 0,  // páginas estáticas: sem cache
+      static: 30, // páginas estáticas: mínimo de 30s exigido pelo Next.js
     },
   },
 };
