@@ -28,7 +28,7 @@ export async function submitLead(formData: {
 }) {
   const parsed = LeadSchema.safeParse(formData);
   if (!parsed.success) {
-    throw new Error(parsed.error.errors[0].message);
+    throw new Error(parsed.error.issues[0].message);
   }
 
   const { nome, email, whatsapp, mensagem } = parsed.data;
