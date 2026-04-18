@@ -188,7 +188,9 @@ export default function LandingPage() {
                   <input
                     type="text"
                     id="name"
+                    name="name"
                     placeholder="Seu nome completo"
+                    required
                     className="w-full px-5 py-3.5 rounded-xl bg-transparent border border-neutral-200 hover:border-neutral-300 focus:border-[#460362] focus:ring-1 focus:ring-[#460362] outline-none transition-all duration-200 placeholder-neutral-400 text-neutral-900"
                   />
                 </div>
@@ -197,10 +199,24 @@ export default function LandingPage() {
                   <input
                     type="email"
                     id="email"
+                    name="email"
                     placeholder="contato@empresa.com"
+                    required
                     className="w-full px-5 py-3.5 rounded-xl bg-transparent border border-neutral-200 hover:border-neutral-300 focus:border-[#460362] focus:ring-1 focus:ring-[#460362] outline-none transition-all duration-200 placeholder-neutral-400 text-neutral-900"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label htmlFor="whatsapp" className="block text-sm font-semibold text-neutral-700 mb-1.5 ml-1">WhatsApp</label>
+                <input
+                  type="text"
+                  id="whatsapp"
+                  name="whatsapp"
+                  placeholder="(11) 99999-9999"
+                  required
+                  className="w-full px-5 py-3.5 rounded-xl bg-transparent border border-neutral-200 hover:border-neutral-300 focus:border-[#460362] focus:ring-1 focus:ring-[#460362] outline-none transition-all duration-200 placeholder-neutral-400 text-neutral-900"
+                />
               </div>
 
               <div>

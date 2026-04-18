@@ -84,7 +84,7 @@ export default function WarRoomPage() {
           <div style={{ textAlign: 'right' }}>
              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>Prazo de Entrega</div>
              <div style={{ fontSize: 24, fontWeight: 800, color: '#fff' }}>
-               {new Date(projeto.prazo_entrega).toLocaleDateString()}
+               {new Date(projeto.prazo_entrega).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
              </div>
           </div>
         </div>
