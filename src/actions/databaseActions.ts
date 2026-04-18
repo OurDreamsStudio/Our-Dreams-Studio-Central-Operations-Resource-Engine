@@ -36,10 +36,11 @@ const ProjetoSaveSchema = z.object({
   status_producao: emptyStringToNull,
   prazo_entrega: emptyStringToNull,
   link_arquivos: optionalUrl,
-  servicos_fechados: z.array(z.string()).optional().nullable(),
+  // Aceita string (join de array) OU array — a UI envia string via .join(', ')
+  servicos_fechados: z.union([z.string(), z.array(z.string())]).optional().nullable(),
   valores_servicos: z.record(z.string(), z.coerce.number()).optional().nullable(),
   cupom_usado: emptyStringToNull,
-});
+}).strip();
 
 const CustoFixoSchema = z.object({
   nome: z.string().min(1).max(255),
