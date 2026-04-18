@@ -39,6 +39,7 @@ export default function KanbanPage() {
   const [closingProject, setClosingProject] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [modalData, setModalData] = useState({
+    nome: '',
     servicosSelecionados: [] as string[],
     valor_fechado: '',
     sinal_pago: false,
@@ -117,6 +118,7 @@ export default function KanbanPage() {
   const handleCloseModal = () => {
     setClosingProject(null);
     setModalData({
+      nome: '',
       servicosSelecionados: [],
       valor_fechado: '',
       sinal_pago: false,
@@ -139,7 +141,7 @@ export default function KanbanPage() {
     const valorTotal = Object.values(modalData.servicosPrecos).reduce((acc, v) => acc + v, 0);
 
     const projectData = {
-      nome: `Projeto - ${modalData.servicosSelecionados[0] || 'Novo'}`,
+      nome: modalData.nome.trim() || `Projeto - ${modalData.servicosSelecionados[0] || 'Novo'}`,
       status_producao: ETAPAS_PRODUCAO[0], // Definição de Escopo
       servicos_fechados: servicosStr,
       checklist_preparacao: checklist,
@@ -377,6 +379,25 @@ export default function KanbanPage() {
             </p>
 
             <form onSubmit={handleSubmitClosing} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>
+                  Nome do Projeto *
+                </label>
+                <input
+                  required
+                  type="text"
+                  placeholder="Ex: EP Vol.1 - Mixagem, Single Verão 2026..."
+                  value={modalData.nome}
+                  onChange={e => setModalData({...modalData, nome: e.target.value})}
+                  style={{
+                    width: '100%', padding: '12px 16px', borderRadius: 8,
+                    background: 'var(--bg-base)', border: '1px solid var(--accent)',
+                    color: '#fff', outline: 'none', fontSize: 14,
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 12, color: 'var(--text-primary)' }}>
                   Serviços (Múltipla Escolha)
