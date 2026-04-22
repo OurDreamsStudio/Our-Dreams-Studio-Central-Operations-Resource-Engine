@@ -209,6 +209,8 @@ export type Database = {
           link_arquivos: string | null
           motivo_revisao: string | null
           nome: string | null
+          orcamento_arquivado: boolean | null
+          orcamento_pdf_url: string | null
           prazo_entrega: string | null
           public_token: string | null
           servicos_fechados: string | null
@@ -235,6 +237,8 @@ export type Database = {
           link_arquivos?: string | null
           motivo_revisao?: string | null
           nome?: string | null
+          orcamento_arquivado?: boolean | null
+          orcamento_pdf_url?: string | null
           prazo_entrega?: string | null
           public_token?: string | null
           servicos_fechados?: string | null
@@ -261,6 +265,8 @@ export type Database = {
           link_arquivos?: string | null
           motivo_revisao?: string | null
           nome?: string | null
+          orcamento_arquivado?: boolean | null
+          orcamento_pdf_url?: string | null
           prazo_entrega?: string | null
           public_token?: string | null
           servicos_fechados?: string | null

@@ -192,3 +192,99 @@ export async function getFinancialIntelligence() {
     lucroOperacional: receitaBrutaTotal - totalSplits - impostosEstimados - OpExMensal,
   };
 }
+
+// --- ORÇAMENTOS (PDFS) ---
+
+export async function getOrcamentos() {
+  await requireAuth();
+  const db = await createUserClient();
+  const { data, error } = await db
+    .from('projetos')
+    .select(`
+      id, 
+      nome, 
+      valor_fechado, 
+      orcamento_pdf_url, 
+      orcamento_arquivado, 
+      created_at, 
+      clientes (id, nome_artistico, nome_pessoal)
+    `)
+    .not('orcamento_pdf_url', 'is', null)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function toggleArchiveOrcamento(projetoId: string, arquivado: boolean) {
+  await requireAuth();
+  const db = await createUserClient();
+  const { error } = await db
+    .from('projetos')
+    .update({ orcamento_arquivado: arquivado })
+    .eq('id', projetoId);
+  if (error) throw new Error(error.message);
+  revalidatePath('/admin/financeiro');
+  return true;
+}
+
+export async function uploadOrcamento(formData: FormData) {
+  await requireAuth();
+  const db = await createUserClient();
+  
+  const file = formData.get('file') as File;
+  const isNewProject = formData.get('isNewProject') === 'true';
+  const projetoId = formData.get('projetoId') as string;
+  
+  if (!file || file.size === 0) throw new Error('Arquivo inválido');
+
+  // Upload no storage
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+  const filePath = `orcamentos/${fileName}`;
+
+  const { error: uploadError } = await db.storage
+    .from('documentos_financeiros')
+    .upload(filePath, file);
+
+  if (uploadError) throw new Error('Erro ao fazer upload: ' + uploadError.message);
+
+  let targetProjetoId = projetoId;
+
+  if (isNewProject) {
+    const clienteId = formData.get('clienteId') as string;
+    const nomeProjeto = formData.get('nomeProjeto') as string;
+    const tipoServico = formData.get('tipoServico') as string;
+    const valorFechado = Number(formData.get('valorFechado') || 0);
+
+    const { data: newProj, error: createError } = await db.from('projetos').insert([{
+      cliente_id: clienteId,
+      nome: nomeProjeto || 'Novo Projeto',
+      tipo_servico: tipoServico,
+      valor_fechado: valorFechado,
+      status_funil: 'Negociação', // Default status
+      orcamento_pdf_url: filePath
+    }]).select('id').single();
+
+    if (createError) throw new Error(createError.message);
+    targetProjetoId = newProj.id;
+  } else {
+    // Vincular a projeto existente
+    const { error: updateError } = await db.from('projetos')
+      .update({ orcamento_pdf_url: filePath })
+      .eq('id', targetProjetoId);
+    if (updateError) throw new Error(updateError.message);
+  }
+
+  revalidatePath('/admin/financeiro');
+  return { success: true, projetoId: targetProjetoId };
+}
+
+export async function getOrcamentoUrl(filePath: string) {
+  await requireAuth();
+  const db = await createUserClient();
+  const { data, error } = await db.storage
+    .from('documentos_financeiros')
+    .createSignedUrl(filePath, 3600); // 1 hora
+  if (error) throw new Error(error.message);
+  return data.signedUrl;
+}

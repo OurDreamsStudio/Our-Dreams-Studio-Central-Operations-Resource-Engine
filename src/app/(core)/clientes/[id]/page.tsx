@@ -5,9 +5,10 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, Save, Activity, CheckCircle, Disc, X, Share2, Check } from 'lucide-react';
+import { Plus, Save, Activity, CheckCircle, Disc, X, Share2, Check, FileText } from 'lucide-react';
 import { SERVICOS, MIX_MASTER_CHECKLIST, ETAPAS_VENDAS, getStatusTheme } from '@/constants/workflow';
 import { getClientProfileData, updateClienteAnotacoes, createUpsellProject } from '@/actions/databaseActions'; // [SEC REFACTOR]
+import { getOrcamentoUrl } from '@/actions/financeiroActions';
 
 const FLUXO_LABEL: Record<string, { label: string; color: string }> = {
   AGUARDANDO_BASE:    { label: 'Aguardando Base',    color: '#8b8ba7' },
@@ -48,6 +49,15 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
     navigator.clipboard.writeText(url);
     setCopiedId(projectId);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleViewOrcamento = async (path: string) => {
+    try {
+      const url = await getOrcamentoUrl(path);
+      window.open(url, '_blank');
+    } catch (err: any) {
+      alert('Erro ao abrir orçamento: ' + err.message);
+    }
   };
 
   useEffect(() => {
@@ -389,6 +399,23 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      {/* Ver Orçamento */}
+                      {proj.orcamento_pdf_url && (
+                        <button
+                          onClick={() => handleViewOrcamento(proj.orcamento_pdf_url)}
+                          style={{
+                            background: 'rgba(124,58,237,0.1)',
+                            border: '1px solid var(--accent)',
+                            borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+                            color: 'var(--accent-light)',
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            transition: 'all 0.2s', fontSize: 11, fontWeight: 700
+                          }}
+                        >
+                          <FileText size={12} /> Ver Orçamento
+                        </button>
+                      )}
+
                       {/* Share Button */}
                       {proj.public_token && (
                         <button
