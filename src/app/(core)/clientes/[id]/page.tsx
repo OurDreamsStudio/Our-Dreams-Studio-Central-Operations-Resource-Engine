@@ -7,8 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Plus, Save, Activity, CheckCircle, Disc, X, Share2, Check, FileText } from 'lucide-react';
 import { SERVICOS, MIX_MASTER_CHECKLIST, ETAPAS_VENDAS, getStatusTheme } from '@/constants/workflow';
-import { getClientProfileData, updateClienteAnotacoes, createUpsellProject } from '@/actions/databaseActions'; // [SEC REFACTOR]
-import { getOrcamentoUrl } from '@/actions/financeiroActions';
+import { getClientProfileData, updateClienteAnotacoes, createUpsellProject } from '@/actions/databaseActions';
 
 const FLUXO_LABEL: Record<string, { label: string; color: string }> = {
   AGUARDANDO_BASE:    { label: 'Aguardando Base',    color: '#8b8ba7' },
@@ -51,13 +50,9 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleViewOrcamento = async (path: string) => {
-    try {
-      const url = await getOrcamentoUrl(path);
-      window.open(url, '_blank');
-    } catch (err: any) {
-      alert('Erro ao abrir orçamento: ' + err.message);
-    }
+  const handleViewOrcamento = (url: string) => {
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   useEffect(() => {

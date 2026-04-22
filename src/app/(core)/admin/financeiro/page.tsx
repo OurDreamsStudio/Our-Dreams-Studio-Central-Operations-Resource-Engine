@@ -46,9 +46,8 @@ import {
   saveAtivoHardware, 
   getFinancialIntelligence,
   getOrcamentos,
-  uploadOrcamento,
-  toggleArchiveOrcamento,
-  getOrcamentoUrl
+  saveOrcamentoLink,
+  toggleArchiveOrcamento
 } from '@/actions/financeiroActions';
 import { getClientes, getProjetos } from '@/actions/databaseActions';
 
@@ -70,6 +69,12 @@ export default function FinanceiroPage() {
   const [showOrcamentoModal, setShowOrcamentoModal] = useState(false);
   
   const [isNewProject, setIsNewProject] = useState(false);
+  const [orcamentoLink, setOrcamentoLink] = useState('');
+  const [orcamentoProjetoId, setOrcamentoProjetoId] = useState('');
+  const [orcamentoClienteId, setOrcamentoClienteId] = useState('');
+  const [orcamentoNome, setOrcamentoNome] = useState('');
+  const [orcamentoTipo, setOrcamentoTipo] = useState('');
+  const [orcamentoValor, setOrcamentoValor] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
@@ -133,14 +138,27 @@ export default function FinanceiroPage() {
     });
   };
 
-  const handleUploadOrcamento = async (e: React.FormEvent) => {
+  const handleSaveOrcamento = async (e: React.FormEvent) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget as HTMLFormElement);
-    fd.append('isNewProject', isNewProject ? 'true' : 'false');
     startTransition(async () => {
       try {
-        await uploadOrcamento(fd);
+        if (isNewProject) {
+          await saveOrcamentoLink(true, orcamentoLink, undefined, {
+            clienteId: orcamentoClienteId,
+            nomeProjeto: orcamentoNome,
+            tipoServico: orcamentoTipo,
+            valorFechado: Number(orcamentoValor) || 0,
+          });
+        } else {
+          await saveOrcamentoLink(false, orcamentoLink, orcamentoProjetoId);
+        }
         setShowOrcamentoModal(false);
+        setOrcamentoLink('');
+        setOrcamentoProjetoId('');
+        setOrcamentoClienteId('');
+        setOrcamentoNome('');
+        setOrcamentoTipo('');
+        setOrcamentoValor('');
         fetchData();
       } catch (err: any) {
         alert(err.message);
@@ -148,13 +166,9 @@ export default function FinanceiroPage() {
     });
   };
 
-  const handleViewPdf = async (path: string) => {
-    try {
-      const url = await getOrcamentoUrl(path);
-      window.open(url, '_blank');
-    } catch (err: any) {
-      alert(err.message);
-    }
+  const handleOpenLink = (url: string) => {
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleToggleArchive = async (id: string, current: boolean) => {
@@ -482,8 +496,8 @@ export default function FinanceiroPage() {
                      )}
                    </td>
                    <td style={{ padding: '16px 24px', textAlign: 'right', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                     <button onClick={() => handleViewPdf(o.orcamento_pdf_url)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid var(--border)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                       <Eye size={14} /> Ver PDF
+                     <button onClick={() => handleOpenLink(o.orcamento_pdf_url)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid var(--border)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                       <Eye size={14} /> Abrir Link
                      </button>
                      <button onClick={() => handleToggleArchive(o.id, o.orcamento_arquivado)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'transparent', color: o.orcamento_arquivado ? 'var(--green)' : 'var(--text-secondary)', border: '1px solid var(--border)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                        {o.orcamento_arquivado ? <RefreshCcw size={14} /> : <Archive size={14} />} 
@@ -577,19 +591,13 @@ export default function FinanceiroPage() {
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: 500 }}>
             <div className="modal-header">
-              <h3>Novo Upload de Orçamento</h3>
+              <h3>Registrar Link de Orçamento</h3>
               <button type="button" onClick={() => setShowOrcamentoModal(false)} className="close-btn"><X size={20} /></button>
             </div>
-            <form onSubmit={handleUploadOrcamento} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              
-              {/* Arquivo */}
-              <div>
-                <label className="field-label">Arquivo PDF</label>
-                <input name="file" type="file" accept=".pdf" className="field-input" required />
-              </div>
+            <form onSubmit={handleSaveOrcamento} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
               {/* Toggle Novo vs Existente */}
-              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+              <div style={{ display: 'flex', gap: 12 }}>
                 <button type="button" onClick={() => setIsNewProject(false)} style={{ flex: 1, padding: 10, borderRadius: 8, background: !isNewProject ? 'rgba(124,58,237,0.1)' : 'transparent', border: `1px solid ${!isNewProject ? 'var(--accent)' : 'var(--border)'}`, color: !isNewProject ? 'var(--accent-light)' : 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer', transition: '0.2s' }}>
                   Projeto Existente
                 </button>
@@ -598,14 +606,34 @@ export default function FinanceiroPage() {
                 </button>
               </div>
 
+              {/* Link do Google Drive */}
+              <div>
+                <label className="field-label">Link do Orçamento (Google Drive, Dropbox, etc.)</label>
+                <input
+                  type="url"
+                  className="field-input"
+                  placeholder="https://drive.google.com/..."
+                  value={orcamentoLink}
+                  onChange={e => setOrcamentoLink(e.target.value)}
+                />
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>Opcional — pode ser adicionado depois.</p>
+              </div>
+
               {/* Campos Condicionais */}
               {!isNewProject ? (
                 <div>
-                  <label className="field-label">Vincular ao Projeto (Sem PDF)</label>
-                  <select name="projetoId" className="field-input" required={!isNewProject}>
+                  <label className="field-label">Vincular ao Projeto Existente</label>
+                  <select
+                    className="field-input"
+                    required={!isNewProject}
+                    value={orcamentoProjetoId}
+                    onChange={e => setOrcamentoProjetoId(e.target.value)}
+                  >
                     <option value="">Selecione um projeto...</option>
                     {projetosSemPdf.map(p => (
-                      <option key={p.id} value={p.id}>{p.nome || p.tipo_servico || `Projeto de ${p.clientes?.nome_artistico || p.clientes?.nome_pessoal}`}</option>
+                      <option key={p.id} value={p.id}>
+                        {p.nome || p.tipo_servico || `Projeto de ${p.clientes?.nome_artistico || p.clientes?.nome_pessoal}`}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -613,7 +641,12 @@ export default function FinanceiroPage() {
                 <>
                   <div>
                     <label className="field-label">Cliente</label>
-                    <select name="clienteId" className="field-input" required={isNewProject}>
+                    <select
+                      className="field-input"
+                      required={isNewProject}
+                      value={orcamentoClienteId}
+                      onChange={e => setOrcamentoClienteId(e.target.value)}
+                    >
                       <option value="">Selecione o Cliente</option>
                       {clientes.map(c => (
                         <option key={c.id} value={c.id}>{c.nome_artistico || c.nome_pessoal}</option>
@@ -622,23 +655,23 @@ export default function FinanceiroPage() {
                   </div>
                   <div>
                     <label className="field-label">Nome do Projeto</label>
-                    <input name="nomeProjeto" type="text" className="field-input" placeholder="Ex: EP Acústico 2026" required={isNewProject} />
+                    <input type="text" className="field-input" placeholder="Ex: EP Acústico 2026" required={isNewProject} value={orcamentoNome} onChange={e => setOrcamentoNome(e.target.value)} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                     <div>
                       <label className="field-label">Tipo de Serviço</label>
-                      <input name="tipoServico" type="text" className="field-input" placeholder="Produção Completa" required={isNewProject} />
+                      <input type="text" className="field-input" placeholder="Produção Completa" required={isNewProject} value={orcamentoTipo} onChange={e => setOrcamentoTipo(e.target.value)} />
                     </div>
                     <div>
                       <label className="field-label">Valor Fechado (R$)</label>
-                      <input name="valorFechado" type="number" step="0.01" className="field-input" placeholder="0.00" required={isNewProject} />
+                      <input type="number" step="0.01" className="field-input" placeholder="0.00" value={orcamentoValor} onChange={e => setOrcamentoValor(e.target.value)} />
                     </div>
                   </div>
                 </>
               )}
 
               <button type="submit" disabled={isPending} className="btn-primary" style={{ marginTop: 12 }}>
-                {isPending ? 'Enviando...' : 'Salvar Orçamento'}
+                {isPending ? 'Salvando...' : 'Salvar Orçamento'}
               </button>
             </form>
           </div>

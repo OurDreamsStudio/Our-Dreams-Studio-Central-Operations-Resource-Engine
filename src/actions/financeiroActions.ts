@@ -193,7 +193,7 @@ export async function getFinancialIntelligence() {
   };
 }
 
-// --- ORÇAMENTOS (PDFS) ---
+// --- ORÇAMENTOS (LINKS) ---
 
 export async function getOrcamentos() {
   await requireAuth();
@@ -227,64 +227,39 @@ export async function toggleArchiveOrcamento(projetoId: string, arquivado: boole
   return true;
 }
 
-export async function uploadOrcamento(formData: FormData) {
+export async function saveOrcamentoLink(
+  isNewProject: boolean,
+  link: string,
+  projetoId?: string,
+  newProjectData?: { clienteId: string; nomeProjeto: string; tipoServico: string; valorFechado: number }
+) {
   await requireAuth();
   const db = await createUserClient();
-  
-  const file = formData.get('file') as File;
-  const isNewProject = formData.get('isNewProject') === 'true';
-  const projetoId = formData.get('projetoId') as string;
-  
-  if (!file || file.size === 0) throw new Error('Arquivo inválido');
 
-  // Upload no storage
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-  const filePath = `orcamentos/${fileName}`;
-
-  const { error: uploadError } = await db.storage
-    .from('documentos_financeiros')
-    .upload(filePath, file);
-
-  if (uploadError) throw new Error('Erro ao fazer upload: ' + uploadError.message);
-
-  let targetProjetoId = projetoId;
+  // Link pode ser vazio — apenas salva null
+  const urlToSave = link.trim() === '' ? null : link.trim();
 
   if (isNewProject) {
-    const clienteId = formData.get('clienteId') as string;
-    const nomeProjeto = formData.get('nomeProjeto') as string;
-    const tipoServico = formData.get('tipoServico') as string;
-    const valorFechado = Number(formData.get('valorFechado') || 0);
-
+    if (!newProjectData) throw new Error('Dados do projeto são obrigatórios.');
     const { data: newProj, error: createError } = await db.from('projetos').insert([{
-      cliente_id: clienteId,
-      nome: nomeProjeto || 'Novo Projeto',
-      tipo_servico: tipoServico,
-      valor_fechado: valorFechado,
-      status_funil: 'Negociação', // Default status
-      orcamento_pdf_url: filePath
+      cliente_id: newProjectData.clienteId,
+      nome: newProjectData.nomeProjeto || 'Novo Projeto',
+      tipo_servico: newProjectData.tipoServico,
+      valor_fechado: newProjectData.valorFechado,
+      status_funil: 'Negociação',
+      orcamento_pdf_url: urlToSave,
+      public_token: crypto.randomUUID(),
     }]).select('id').single();
-
     if (createError) throw new Error(createError.message);
-    targetProjetoId = newProj.id;
+    revalidatePath('/admin/financeiro');
+    return { success: true, projetoId: newProj.id };
   } else {
-    // Vincular a projeto existente
+    if (!projetoId) throw new Error('ID do projeto é obrigatório.');
     const { error: updateError } = await db.from('projetos')
-      .update({ orcamento_pdf_url: filePath })
-      .eq('id', targetProjetoId);
+      .update({ orcamento_pdf_url: urlToSave })
+      .eq('id', projetoId);
     if (updateError) throw new Error(updateError.message);
+    revalidatePath('/admin/financeiro');
+    return { success: true, projetoId };
   }
-
-  revalidatePath('/admin/financeiro');
-  return { success: true, projetoId: targetProjetoId };
-}
-
-export async function getOrcamentoUrl(filePath: string) {
-  await requireAuth();
-  const db = await createUserClient();
-  const { data, error } = await db.storage
-    .from('documentos_financeiros')
-    .createSignedUrl(filePath, 3600); // 1 hora
-  if (error) throw new Error(error.message);
-  return data.signedUrl;
 }
