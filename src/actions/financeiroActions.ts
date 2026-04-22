@@ -274,3 +274,14 @@ export async function updateOrcamentoLink(projetoId: string, link: string) {
   revalidatePath('/admin/financeiro');
   return true;
 }
+
+export async function removeOrcamentoLink(projetoId: string) {
+  await requireAuth();
+  const db = await createUserClient();
+  const { error } = await db.from('projetos')
+    .update({ orcamento_pdf_url: null, orcamento_arquivado: false })
+    .eq('id', projetoId);
+  if (error) throw new Error(error.message);
+  revalidatePath('/admin/financeiro');
+  return true;
+}

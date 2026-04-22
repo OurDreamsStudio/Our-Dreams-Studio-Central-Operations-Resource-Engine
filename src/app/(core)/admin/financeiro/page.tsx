@@ -49,7 +49,8 @@ import {
   getOrcamentos,
   saveOrcamentoLink,
   toggleArchiveOrcamento,
-  updateOrcamentoLink
+  updateOrcamentoLink,
+  removeOrcamentoLink
 } from '@/actions/financeiroActions';
 import { getClientes, getProjetos } from '@/actions/databaseActions';
 
@@ -206,6 +207,20 @@ export default function FinanceiroPage() {
        fetchData();
     });
   };
+
+  const handleDeleteLink = async (id: string) => {
+    if (!confirm('Tem certeza que deseja apagar o link deste orçamento? Isso não excluirá o projeto, apenas removerá o link.')) return;
+    startTransition(async () => {
+      try {
+        await removeOrcamentoLink(id);
+        fetchData();
+      } catch (err: any) {
+        alert(err.message);
+      }
+    });
+  };
+
+
 
   if (loading && !efi) {
     return (
