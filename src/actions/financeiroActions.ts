@@ -263,3 +263,14 @@ export async function saveOrcamentoLink(
     return { success: true, projetoId };
   }
 }
+
+export async function updateOrcamentoLink(projetoId: string, link: string) {
+  await requireAuth();
+  const db = await createUserClient();
+  const { error } = await db.from('projetos')
+    .update({ orcamento_pdf_url: link.trim() || null })
+    .eq('id', projetoId);
+  if (error) throw new Error(error.message);
+  revalidatePath('/admin/financeiro');
+  return true;
+}

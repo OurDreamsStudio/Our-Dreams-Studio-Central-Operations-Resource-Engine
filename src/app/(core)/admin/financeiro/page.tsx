@@ -35,7 +35,8 @@ import {
   FileText,
   Eye,
   Archive,
-  RefreshCcw
+  RefreshCcw,
+  Pencil
 } from 'lucide-react';
 import { handleSupabaseError } from '@/lib/utils';
 import { 
@@ -47,7 +48,8 @@ import {
   getFinancialIntelligence,
   getOrcamentos,
   saveOrcamentoLink,
-  toggleArchiveOrcamento
+  toggleArchiveOrcamento,
+  updateOrcamentoLink
 } from '@/actions/financeiroActions';
 import { getClientes, getProjetos } from '@/actions/databaseActions';
 
@@ -75,6 +77,11 @@ export default function FinanceiroPage() {
   const [orcamentoNome, setOrcamentoNome] = useState('');
   const [orcamentoTipo, setOrcamentoTipo] = useState('');
   const [orcamentoValor, setOrcamentoValor] = useState('');
+
+  // Editar link
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingOrcamento, setEditingOrcamento] = useState<any>(null);
+  const [editLink, setEditLink] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
@@ -169,6 +176,28 @@ export default function FinanceiroPage() {
   const handleOpenLink = (url: string) => {
     if (!url) return;
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleOpenEditModal = (o: any) => {
+    setEditingOrcamento(o);
+    setEditLink(o.orcamento_pdf_url || '');
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOrcamento) return;
+    startTransition(async () => {
+      try {
+        await updateOrcamentoLink(editingOrcamento.id, editLink);
+        setShowEditModal(false);
+        setEditingOrcamento(null);
+        setEditLink('');
+        fetchData();
+      } catch (err: any) {
+        alert(err.message);
+      }
+    });
   };
 
   const handleToggleArchive = async (id: string, current: boolean) => {
@@ -499,6 +528,9 @@ export default function FinanceiroPage() {
                      <button onClick={() => handleOpenLink(o.orcamento_pdf_url)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid var(--border)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                        <Eye size={14} /> Abrir Link
                      </button>
+                     <button onClick={() => handleOpenEditModal(o)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'rgba(124,58,237,0.08)', color: 'var(--accent-light)', border: '1px solid rgba(124,58,237,0.3)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                       <Pencil size={14} /> Editar
+                     </button>
                      <button onClick={() => handleToggleArchive(o.id, o.orcamento_arquivado)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'transparent', color: o.orcamento_arquivado ? 'var(--green)' : 'var(--text-secondary)', border: '1px solid var(--border)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                        {o.orcamento_arquivado ? <RefreshCcw size={14} /> : <Archive size={14} />} 
                        {o.orcamento_arquivado ? 'Desarquivar' : 'Arquivar'}
@@ -606,17 +638,17 @@ export default function FinanceiroPage() {
                 </button>
               </div>
 
-              {/* Link do Google Drive */}
+              {/* Link do Orçamento - OBRIGATÓRIO */}
               <div>
-                <label className="field-label">Link do Orçamento (Google Drive, Dropbox, etc.)</label>
+                <label className="field-label">Link do Orçamento (Google Drive, Dropbox, etc.) *</label>
                 <input
                   type="url"
                   className="field-input"
                   placeholder="https://drive.google.com/..."
                   value={orcamentoLink}
                   onChange={e => setOrcamentoLink(e.target.value)}
+                  required
                 />
-                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>Opcional — pode ser adicionado depois.</p>
               </div>
 
               {/* Campos Condicionais */}
@@ -672,6 +704,41 @@ export default function FinanceiroPage() {
 
               <button type="submit" disabled={isPending} className="btn-primary" style={{ marginTop: 12 }}>
                 {isPending ? 'Salvando...' : 'Salvar Orçamento'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição de Link */}
+      {showEditModal && editingOrcamento && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: 460 }}>
+            <div className="modal-header">
+              <h3>Editar Link do Orçamento</h3>
+              <button type="button" onClick={() => setShowEditModal(false)} className="close-btn"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleSaveEditLink} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <strong>{editingOrcamento.nome}</strong><br />
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {editingOrcamento.clientes?.nome_artistico || editingOrcamento.clientes?.nome_pessoal}
+                </span>
+              </div>
+              <div>
+                <label className="field-label">Novo Link (Google Drive, Dropbox, etc.) *</label>
+                <input
+                  type="url"
+                  className="field-input"
+                  placeholder="https://drive.google.com/..."
+                  value={editLink}
+                  onChange={e => setEditLink(e.target.value)}
+                  required
+                  autoFocus
+                />
+              </div>
+              <button type="submit" disabled={isPending} className="btn-primary" style={{ marginTop: 4 }}>
+                {isPending ? 'Salvando...' : 'Salvar Novo Link'}
               </button>
             </form>
           </div>
