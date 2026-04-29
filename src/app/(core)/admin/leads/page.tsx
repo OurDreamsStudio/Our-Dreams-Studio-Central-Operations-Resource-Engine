@@ -108,14 +108,22 @@ export default function LeadsPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {leads.map((lead) => (
+          {leads.map((lead) => {
+            const tempColors: any = {
+              'Hot': { bg: 'rgba(239,68,68,0.15)', text: '#ef4444', border: 'rgba(239,68,68,0.3)' },
+              'Warm': { bg: 'rgba(249,115,22,0.15)', text: '#f97316', border: 'rgba(249,115,22,0.3)' },
+              'Cold': { bg: 'rgba(56,189,248,0.15)', text: '#38bdf8', border: 'rgba(56,189,248,0.3)' },
+            };
+            const tColor = lead.temperature ? tempColors[lead.temperature] : null;
+
+            return (
             <div
               key={lead.id}
               className="glass"
               style={{
                 padding: '20px 24px', borderRadius: 16,
-                border: `1px solid ${lead.lido ? 'var(--border)' : 'rgba(124,58,237,0.4)'}`,
-                boxShadow: lead.lido ? 'none' : '0 0 20px rgba(124,58,237,0.08)',
+                border: `1px solid ${lead.lido ? 'var(--border)' : (tColor ? tColor.border : 'rgba(124,58,237,0.4)')}`,
+                boxShadow: lead.lido ? 'none' : (tColor ? `0 0 20px ${tColor.bg}` : '0 0 20px rgba(124,58,237,0.08)'),
                 opacity: lead.lido ? 0.7 : 1,
                 transition: '0.2s',
               }}
@@ -133,14 +141,23 @@ export default function LeadsPage() {
                       <UserPlus size={18} />
                     </div>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>
+                      <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
                         {lead.nome}
                         {!lead.lido && (
                           <span style={{
-                            marginLeft: 10, fontSize: 10, fontWeight: 800,
+                            fontSize: 10, fontWeight: 800,
                             background: 'var(--accent)', color: '#fff',
                             padding: '2px 7px', borderRadius: 6, verticalAlign: 'middle'
                           }}>NOVO</span>
+                        )}
+                        {lead.temperature && (
+                          <span style={{
+                            fontSize: 11, fontWeight: 700,
+                            background: tColor.bg, color: tColor.text, border: `1px solid ${tColor.border}`,
+                            padding: '2px 8px', borderRadius: 6, display: 'inline-flex', alignItems: 'center'
+                          }}>
+                            {lead.temperature.toUpperCase()} • {lead.score} PTS
+                          </span>
                         )}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
@@ -178,6 +195,25 @@ export default function LeadsPage() {
                       <span>"{lead.mensagem}"</span>
                     </div>
                   )}
+
+                  {lead.diagnostic_data && (
+                    <div style={{
+                      marginTop: 12, padding: '12px 14px', borderRadius: 10,
+                      background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)',
+                      fontSize: 12, color: 'var(--text-muted)'
+                    }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <MessageSquare size={14} />
+                        Diagnóstico Inicial do Bot:
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+                        <div><strong style={{color: 'var(--text-primary)'}}>Q1 (Arquivos):</strong> Opção {lead.diagnostic_data.q1}</div>
+                        <div><strong style={{color: 'var(--text-primary)'}}>Q2 (Experiência):</strong> Opção {lead.diagnostic_data.q2}</div>
+                        <div><strong style={{color: 'var(--text-primary)'}}>Q3 (Serviços):</strong> Opção {lead.diagnostic_data.q3}</div>
+                        <div><strong style={{color: 'var(--text-primary)'}}>Q4 (Orçamento):</strong> Opção {lead.diagnostic_data.q4}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -213,7 +249,8 @@ export default function LeadsPage() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

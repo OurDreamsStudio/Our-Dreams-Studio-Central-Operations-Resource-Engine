@@ -1,0 +1,154 @@
+{
+  "name": "Sub-Workflow: Lead Scoring The Pulse",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://<SEU_DOMINIO>/api/webhooks/n8n/leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer LifeCenter@*20066472LX"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"whatsapp_id\": \"{{ $('Webhook').item.json.body.key.remoteJid.split('@')[0] }}\"\n}"
+      },
+      "id": "2",
+      "name": "Enviar para The Pulse",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "1",
+                    "leftValue": "={{ $json.temperature }}",
+                    "rightValue": "Hot",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Hot Lead"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "2",
+                    "leftValue": "={{ $json.temperature }}",
+                    "rightValue": "Warm",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Warm Lead"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "3",
+                    "leftValue": "={{ $json.temperature }}",
+                    "rightValue": "Cold",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Cold Lead"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3",
+      "name": "Roteamento por Temperatura",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [440, 0]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Enviar para The Pulse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar para The Pulse": {
+      "main": [
+        [
+          {
+            "node": "Roteamento por Temperatura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f781df33-f14d-4581-ba56-9a5ec9dc0cc6",
+  "id": "lead_scoring_sub_workflow",
+  "meta": {
+    "templateId": "lead_scoring"
+  },
+  "tags": []
+}
