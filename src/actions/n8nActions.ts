@@ -18,7 +18,22 @@ export async function triggerRescueFlow(whatsappNumber: string) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        whatsapp_id: `55${cleanNumber}@s.whatsapp.net`, // Formata no padrão esperado pela Evolution API / Fluxo
+        // Envia o número em vários formatos para garantir compatibilidade
+        whatsapp_id: `55${cleanNumber}@s.whatsapp.net`, 
+        remoteJid: `55${cleanNumber}@s.whatsapp.net`,
+        // Simula exatamente o texto que o fluxo do n8n espera para iniciar a cadência!
+        conversation: 'Olá, quero dar continuidade',
+        message: {
+          conversation: 'Olá, quero dar continuidade'
+        },
+        data: {
+          message: {
+            conversation: 'Olá, quero dar continuidade',
+            key: {
+              remoteJid: `55${cleanNumber}@s.whatsapp.net`
+            }
+          }
+        },
         source: 'ThePulse_RescueMode'
       })
     });
