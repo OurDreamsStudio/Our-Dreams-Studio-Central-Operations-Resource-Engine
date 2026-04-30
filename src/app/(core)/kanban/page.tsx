@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Link from 'next/link';
-import { Disc, DollarSign, X, Check, Tag, AlertCircle, Link as LinkIcon, Share2 } from 'lucide-react';
+import { Disc, DollarSign, X, Check, Tag, AlertCircle, Link as LinkIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useGrabScroll } from '@/hooks/useGrabScroll';
 import { SERVICOS, ETAPAS_PRODUCAO, MIX_MASTER_CHECKLIST, ETAPAS_VENDAS, FunilStatus, getStatusTheme } from '@/constants/workflow';
@@ -28,10 +28,23 @@ function getAvatarColor(name: string) {
   return colors[name.charCodeAt(0) % colors.length];
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return isMobile;
+}
+
 export default function KanbanPage() {
   const [projetos, setProjetos] = useState<any[]>([]);
   const { scrollRef, isScrolling, events } = useGrabScroll();
   const [loading, setLoading] = useState(true);
+  const isMobile = useIsMobile();
 
   const [dragging, setDragging] = useState<string | null>(null);
   const router = useRouter();
@@ -176,16 +189,23 @@ export default function KanbanPage() {
 
   return (
     <>
-      <div style={{ padding: '32px 36px', height: '100vh', display: 'flex', flexDirection: 'column' }} className="fade-up">
+      <div style={{ padding: isMobile ? '20px 16px' : '32px 36px', height: '100dvh', display: 'flex', flexDirection: 'column' }} className="fade-up">
         {/* Header */}
         <div style={{ marginBottom: 28, flexShrink: 0 }}>
           <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
             <span className="gradient-text">Board Kanban</span>
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-            Arraste os cards para mover projetos entre etapas do funil
+            {isMobile ? 'Deslize para ver as colunas' : 'Arraste os cards para mover projetos entre etapas do funil'}
           </p>
         </div>
+
+        {/* Mobile swipe hint */}
+        {isMobile && (
+          <div className="kanban-swipe-hint">
+            <ChevronLeft size={14} /> deslize para navegar entre colunas <ChevronRight size={14} />
+          </div>
+        )}
 
         {/* Board */}
         <div
@@ -323,6 +343,41 @@ export default function KanbanPage() {
                           </div>
                         )}
 
+                        {/* Mobile arrow controls */}
+                        {isMobile && (() => {
+                          const colIdx = COLUMNS.findIndex(c => c.id === col.id);
+                          const prevCol = COLUMNS[colIdx - 1];
+                          const nextCol = COLUMNS[colIdx + 1];
+                          if (!prevCol && !nextCol) return null;
+                          return (
+                            <div style={{ display: 'flex', gap: 6, marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                              {prevCol && (
+                                <button
+                                  onClick={async () => {
+                                    setDragging(proj.id);
+                                    await handleDrop(prevCol.id);
+                                  }}
+                                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 11, fontWeight: 600 }}
+                                  title={`← ${prevCol.label}`}
+                                >
+                                  <ChevronLeft size={14} /> {prevCol.label.split(' ')[0]}
+                                </button>
+                              )}
+                              {nextCol && (
+                                <button
+                                  onClick={async () => {
+                                    setDragging(proj.id);
+                                    await handleDrop(nextCol.id);
+                                  }}
+                                  style={{ flex: 1, background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 8, padding: '6px', cursor: 'pointer', color: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 11, fontWeight: 600 }}
+                                  title={`${nextCol.label} →`}
+                                >
+                                  {nextCol.label.split(' ')[0]} <ChevronRight size={14} />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {/* Footer */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           {proj.valor_fechado ? (
@@ -338,6 +393,7 @@ export default function KanbanPage() {
                             </span>
                           )}
                         </div>
+
                       </div>
                     );
                   })}
@@ -410,7 +466,7 @@ export default function KanbanPage() {
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 12, color: 'var(--text-primary)' }}>
                   Serviços (Múltipla Escolha)
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }} className="form-grid-2">
                   {SERVICOS.map((servico) => (
                     <label key={servico} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '10px 12px', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 8 }}>
                       <input

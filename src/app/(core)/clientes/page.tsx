@@ -40,7 +40,7 @@ export default async function ClientesPage() {
 
   if (error) {
     return (
-      <div style={{ padding: '32px 36px', maxWidth: 1100 }} className="fade-up">
+      <div style={{ padding: 'clamp(20px,4vw,32px) clamp(16px,4vw,36px)', maxWidth: 1100 }} className="fade-up">
         <div style={{ padding: 24, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 16 }}>
           <div style={{ color: '#ef4444', fontWeight: 600, fontSize: 16, marginBottom: 8 }}>
             Erro de Carregamento
@@ -52,7 +52,7 @@ export default async function ClientesPage() {
   }
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 1100 }} className="fade-up">
+    <div style={{ padding: 'clamp(20px,4vw,32px) clamp(16px,4vw,36px)', maxWidth: 1100 }} className="fade-up">
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
           <span className="gradient-text">Clientes</span>

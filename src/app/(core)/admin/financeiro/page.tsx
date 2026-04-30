@@ -243,9 +243,9 @@ export default function FinanceiroPage() {
   const faltaParaBreakEven = Math.max(0, efi.OpExMensal - receitaMesAtual);
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 1400, margin: '0 auto' }} className="fade-up">
+    <div style={{ padding: 'clamp(20px, 4vw, 32px) clamp(16px, 4vw, 40px)', maxWidth: 1400, margin: '0 auto' }} className="fade-up">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>
             Enterprise <span className="gradient-text">Financial Intelligence</span>
@@ -291,7 +291,7 @@ export default function FinanceiroPage() {
       {activeTab === 'dashboard' && (
         <>
           {/* Quick Metrics Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 32 }}>
+          <div className="stats-grid" style={{ display: 'grid', gap: 20, marginBottom: 32 }}>
             {[
               { label: 'Receita Bruta Total', value: `R$ ${efi.receitaBrutaTotal.toLocaleString('pt-BR')}`, icon: <TrendingUp className="text-green" />, color: 'var(--green)' },
               { label: 'Repasses (Splits)', value: `R$ ${efi.totalSplits.toLocaleString('pt-BR')}`, icon: <TrendingDown className="text-red" />, color: '#ef4444' },
@@ -308,7 +308,7 @@ export default function FinanceiroPage() {
           </div>
 
           {/* Main Grid: Charts & Tables */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24, marginBottom: 24 }}>
+          <div className="dashboard-grid" style={{ display: 'grid', gap: 24, marginBottom: 24 }}>
             {/* Left Column: Line Chart & DRE */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               {/* Fluxo de Caixa Visualization */}
@@ -336,7 +336,8 @@ export default function FinanceiroPage() {
                 <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
                   <h3 style={{ fontSize: 16, fontWeight: 700 }}>DRE Operacional (Histórico Consolidado)</h3>
                 </div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 500 }}>
                   <tbody>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '16px 24px', color: 'var(--text-secondary)' }}>Receita Bruta (Projetos)</td>
@@ -362,6 +363,7 @@ export default function FinanceiroPage() {
                     </tr>
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
 
@@ -434,12 +436,13 @@ export default function FinanceiroPage() {
           </div>
 
           {/* Tables Row: Full Management */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+          <div className="dashboard-grid" style={{ display: 'grid', gap: 24 }}>
             <div className="glass" style={{ padding: 0, borderRadius: 20, overflow: 'hidden' }}>
               <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700 }}>Gestão de Custos Fixos</h3>
               </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 400 }}>
                  <thead>
                    <tr style={{ background: 'rgba(0,0,0,0.2)', textAlign: 'left', color: 'var(--text-muted)' }}>
                      <th style={{ padding: '12px 24px' }}>DESCRIÇÃO</th>
@@ -469,13 +472,15 @@ export default function FinanceiroPage() {
                    {custos.length === 0 && <tr><td colSpan={4} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>Nenhum custo fixo cadastrado.</td></tr>}
                  </tbody>
               </table>
+              </div>
             </div>
 
             <div className="glass" style={{ padding: 0, borderRadius: 20, overflow: 'hidden' }}>
               <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700 }}>Inventário de Ativos (Real Estate)</h3>
               </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 400 }}>
                  <thead>
                    <tr style={{ background: 'rgba(0,0,0,0.2)', textAlign: 'left', color: 'var(--text-muted)' }}>
                      <th style={{ padding: '12px 24px' }}>ITEM</th>
@@ -496,9 +501,10 @@ export default function FinanceiroPage() {
                    {ativos.length === 0 && <tr><td colSpan={4} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>Nenhum equipamento registrado.</td></tr>}
                  </tbody>
               </table>
-            </div>
-          </div>
-        </>
+             </div>
+           </div>
+         </div>
+       </>
       )}
 
       {/* TABS CONTENT: ORCAMENTOS */}
@@ -507,7 +513,8 @@ export default function FinanceiroPage() {
            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
              <h3 style={{ fontSize: 16, fontWeight: 700 }}>Orçamentos Registrados</h3>
            </div>
-           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+           <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 600 }}>
              <thead>
                <tr style={{ background: 'rgba(0,0,0,0.2)', textAlign: 'left', color: 'var(--text-muted)' }}>
                  <th style={{ padding: '16px 24px' }}>PROJETO / CLIENTE</th>
@@ -556,6 +563,7 @@ export default function FinanceiroPage() {
                {orcamentos.length === 0 && <tr><td colSpan={5} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Nenhum orçamento registrado ainda.</td></tr>}
              </tbody>
            </table>
+           </div>
         </div>
       )}
 
@@ -572,7 +580,7 @@ export default function FinanceiroPage() {
                 <label className="field-label">Descrição</label>
                 <input name="descricao" className="field-input" placeholder="Ex: Aluguel Estúdio" required />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="form-grid-2" style={{ gap: 16 }}>
                 <div>
                   <label className="field-label">Valor (R$)</label>
                   <input name="valor" type="number" step="0.01" className="field-input" placeholder="0.00" required />
@@ -612,7 +620,7 @@ export default function FinanceiroPage() {
                 <label className="field-label">Equipamento</label>
                 <input name="item" className="field-input" placeholder="Ex: Mac Studio M2" required />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="form-grid-2" style={{ gap: 16 }}>
                 <div>
                   <label className="field-label">Valor de Compra (R$)</label>
                   <input name="valor_compra" type="number" step="0.01" className="field-input" placeholder="0.00" required />
@@ -704,7 +712,7 @@ export default function FinanceiroPage() {
                     <label className="field-label">Nome do Projeto</label>
                     <input type="text" className="field-input" placeholder="Ex: EP Acústico 2026" required={isNewProject} value={orcamentoNome} onChange={e => setOrcamentoNome(e.target.value)} />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div className="form-grid-2" style={{ gap: 16 }}>
                     <div>
                       <label className="field-label">Tipo de Serviço</label>
                       <input type="text" className="field-input" placeholder="Produção Completa" required={isNewProject} value={orcamentoTipo} onChange={e => setOrcamentoTipo(e.target.value)} />

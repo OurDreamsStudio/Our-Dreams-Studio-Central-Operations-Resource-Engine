@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Link from 'next/link';
-import { Disc, DollarSign, Calendar, Users, X, CheckCircle, Link as LinkIcon, Check, Settings } from 'lucide-react';
+import { Disc, DollarSign, Calendar, Users, X, CheckCircle, Link as LinkIcon, Check, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useGrabScroll } from '@/hooks/useGrabScroll';
 
@@ -28,6 +28,18 @@ function getAvatarColor(name: string) {
   return colors[name.charCodeAt(0) % colors.length];
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return isMobile;
+}
+
 function isDateLateOrToday(dateString: string | null) {
   if (!dateString) return false;
   const projectDate = new Date(dateString);
@@ -41,6 +53,7 @@ export default function ProducaoPage() {
   const { scrollRef, isScrolling, events } = useGrabScroll();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const isMobile = useIsMobile();
 
 
   const [dragging, setDragging] = useState<string | null>(null);
@@ -216,16 +229,23 @@ export default function ProducaoPage() {
 
   return (
     <>
-      <div style={{ padding: '32px 36px', height: '100vh', display: 'flex', flexDirection: 'column' }} className="fade-up">
+      <div style={{ padding: isMobile ? '20px 16px' : '32px 36px', height: '100dvh', display: 'flex', flexDirection: 'column' }} className="fade-up">
         {/* Header */}
         <div style={{ marginBottom: 28, flexShrink: 0 }}>
           <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
             <span className="gradient-text">Studio Tracker</span>
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-            Mova os projetos pelas etapas musicais do estúdio
+            {isMobile ? 'Deslize para ver as colunas' : 'Mova os projetos pelas etapas musicais do estúdio'}
           </p>
         </div>
+
+        {/* Mobile swipe hint */}
+        {isMobile && (
+          <div className="kanban-swipe-hint">
+            <ChevronLeft size={14} /> deslize para navegar entre colunas <ChevronRight size={14} />
+          </div>
+        )}
 
         {/* Board */}
         <div
@@ -428,6 +448,40 @@ export default function ProducaoPage() {
                             </span>
                           )}
                         </div>
+
+                        {/* Mobile arrow controls */}
+                        {isMobile && (() => {
+                          const colIdx = COLUMNS.findIndex(c => c.id === col.id);
+                          const prevCol = COLUMNS[colIdx - 1];
+                          const nextCol = COLUMNS[colIdx + 1];
+                          if (!prevCol && !nextCol) return null;
+                          return (
+                            <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                              {prevCol && (
+                                <button
+                                  onClick={async () => {
+                                    setDragging(proj.id);
+                                    await handleDrop(prevCol.id);
+                                  }}
+                                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 11, fontWeight: 600 }}
+                                >
+                                  <ChevronLeft size={14} /> {prevCol.label}
+                                </button>
+                              )}
+                              {nextCol && (
+                                <button
+                                  onClick={async () => {
+                                    setDragging(proj.id);
+                                    await handleDrop(nextCol.id);
+                                  }}
+                                  style={{ flex: 1, background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 8, padding: '6px', cursor: 'pointer', color: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 11, fontWeight: 600 }}
+                                >
+                                  {nextCol.label} <ChevronRight size={14} />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}

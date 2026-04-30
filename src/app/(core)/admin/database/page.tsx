@@ -246,9 +246,9 @@ export default function AdminDatabasePage() {
 
   return (
     <>
-      <div style={{ padding: '32px 40px', maxWidth: 1400, margin: '0 auto' }} className="fade-up">
+      <div style={{ padding: 'clamp(20px, 4vw, 32px) clamp(16px, 4vw, 40px)', maxWidth: 1400, margin: '0 auto' }} className="fade-up">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>
             Sala de <span className="gradient-text">Máquinas</span>
@@ -357,8 +357,8 @@ export default function AdminDatabasePage() {
           </button>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 600 }}>
             <thead>
               <tr style={{ textAlign: 'left', background: 'rgba(0,0,0,0.2)', color: 'var(--text-secondary)' }}>
                 <th style={{ padding: '16px 24px', fontWeight: 600 }}>{activeTab === 'clientes' ? 'NOME / ARTISTA' : 'PROJETO'}</th>
@@ -488,7 +488,7 @@ export default function AdminDatabasePage() {
         title={editingClient ? 'Editar Cliente' : 'Novo Cliente'}
         maxW="600px"
       >
-        <form onSubmit={handleSaveClient} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <form onSubmit={handleSaveClient} style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }} className="form-grid-2">
           {formError && (
             <div style={{ 
               gridColumn: 'span 2', 
@@ -562,7 +562,7 @@ export default function AdminDatabasePage() {
         title={editingProject ? 'Editar Projeto' : 'Novo Projeto Manual'}
         maxW="700px"
       >
-        <form onSubmit={handleSaveProject} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <form onSubmit={handleSaveProject} style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }} className="form-grid-2">
               
               <div style={{ gridColumn: 'span 2' }}>
                 <label className="field-label">Nome do Projeto (Título na Agenda)</label>

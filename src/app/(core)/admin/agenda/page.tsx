@@ -158,9 +158,9 @@ export default function AgendaPage() {
   };
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 1400, margin: '0 auto' }} className="fade-up">
+    <div style={{ padding: 'clamp(20px, 4vw, 32px) clamp(16px, 4vw, 40px)', maxWidth: 1400, margin: '0 auto' }} className="fade-up">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 12 }}>
             <CalendarIcon className="text-accent" /> The <span className="gradient-text">Pulse</span> Agenda
@@ -180,7 +180,7 @@ export default function AgendaPage() {
       </div>
 
       {/* Legend */}
-      <div style={{ display: 'flex', gap: 20, marginBottom: 24, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-light)' }} /> EM EXECUÇÃO</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }} /> REVISÃO</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)' }} /> ENTREGUE</span>
@@ -189,13 +189,15 @@ export default function AgendaPage() {
 
       {/* Calendar Grid */}
       <div className="glass" style={{ padding: 1, borderRadius: 20, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border)' }}
+             className="agenda-calendar-grid">
           {DAYS_OF_WEEK.map(d => (
-            <div key={d} style={{ padding: '12px', textAlign: 'center', fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>{d}</div>
+            <div key={d} style={{ padding: '10px 4px', textAlign: 'center', fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>{d}</div>
           ))}
         </div>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: 'minmax(120px, auto)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: 'minmax(70px, auto)' }}
+             className="agenda-calendar-grid">
           {days.map((day, idx) => {
             if (day === null) return <div key={`empty-${idx}`} style={{ border: '0.1px solid var(--border)', background: 'rgba(0,0,0,0.1)' }} />;
             
@@ -208,19 +210,21 @@ export default function AgendaPage() {
                 key={dateStr}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => handleDrop(e, dateStr)}
+                className="agenda-cell"
                 style={{ 
                   border: '0.1px solid var(--border)', 
-                  padding: 8, 
+                  padding: 6, 
                   background: isToday ? 'rgba(124,58,237,0.02)' : 'transparent',
                   transition: '0.2s',
-                  position: 'relative'
+                  position: 'relative',
+                  minHeight: 80,
                 }}
               >
-                <div style={{ 
+                <div className="agenda-cell-number" style={{ 
                   fontSize: 12, 
                   fontWeight: 800, 
                   color: isToday ? 'var(--accent-light)' : 'var(--text-muted)',
-                  marginBottom: 8,
+                  marginBottom: 4,
                   display: 'flex',
                   justifyContent: 'space-between'
                 }}>
@@ -238,10 +242,11 @@ export default function AgendaPage() {
                         key={`${p.type}-${p.id}`}
                         draggable={!isTerceiro}
                         onDragStart={(e) => !isTerceiro && e.dataTransfer.setData('projectId', p.id)}
+                        className={`agenda-event-pill ${!isTerceiro ? 'project-card-hover' : ''}`}
                         style={{ 
                           fontSize: 10, 
                           fontWeight: 700, 
-                          padding: '6px 8px', 
+                          padding: '4px 6px', 
                           borderRadius: 6, 
                           background: isTerceiro ? 'rgba(0, 245, 255, 0.05)' : 'rgba(0,0,0,0.4)', 
                           borderLeft: `3px solid ${getStatusColor(p.status_producao, p.type)}`,
@@ -253,8 +258,8 @@ export default function AgendaPage() {
                           flexDirection: 'column',
                           gap: 2,
                           animation: isAlerted ? 'pulse-red 2s infinite' : 'none',
+                          overflow: 'hidden',
                         }}
-                        className={!isTerceiro ? "project-card-hover" : ""}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '85%', display: 'flex', alignItems: 'center', gap: 4 }}>

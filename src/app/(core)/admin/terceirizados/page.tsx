@@ -199,7 +199,7 @@ export default function AdminTerceirizadosPage() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500" style={{ padding: 'clamp(20px, 4vw, 32px) clamp(16px, 4vw, 40px)', maxWidth: 1400, margin: '0 auto' }}>
       
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/40 p-6 rounded-3xl border border-white/5 backdrop-blur-xl">
@@ -213,10 +213,10 @@ export default function AdminTerceirizadosPage() {
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
           <button
             onClick={() => { setEditingPartner(null); setShowPartnerModal(true); }}
-            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-5 py-3 rounded-2xl transition-all font-medium shadow-lg shadow-purple-600/20 hover:-translate-y-0.5"
+            className="flex-1 md:flex-none justify-center items-center gap-2 flex bg-purple-600 hover:bg-purple-500 text-white px-5 py-3 rounded-2xl transition-all font-medium shadow-lg shadow-purple-600/20 hover:-translate-y-0.5"
           >
             <UserPlus className="w-5 h-5" />
             <span>Novo Parceiro</span>
@@ -224,7 +224,7 @@ export default function AdminTerceirizadosPage() {
           
           <button
             onClick={() => { setEditingTask(null); setRoadmapSteps(['']); setShowTaskModal(true); }}
-            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-5 py-3 rounded-2xl transition-all font-medium border border-white/5 hover:border-white/10"
+            className="flex-1 md:flex-none justify-center items-center gap-2 flex bg-slate-800 hover:bg-slate-700 text-white px-5 py-3 rounded-2xl transition-all font-medium border border-white/5 hover:border-white/10"
           >
             <PlusCircle className="w-5 h-5 text-blue-400" />
             <span>Alocar Tarefa</span>
@@ -262,8 +262,8 @@ export default function AdminTerceirizadosPage() {
       <div className="bg-slate-900/40 rounded-3xl border border-white/5 backdrop-blur-xl overflow-hidden min-h-[500px]">
         
         {activeTab === 'time' ? (
-          <div className="animate-in slide-in-from-left-4 duration-300 overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="animate-in slide-in-from-left-4 duration-300 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-white/5 border-b border-white/5">
                   <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest">Nome</th>
@@ -313,8 +313,8 @@ export default function AdminTerceirizadosPage() {
             )}
           </div>
         ) : (
-          <div className="animate-in slide-in-from-right-4 duration-300 overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="animate-in slide-in-from-right-4 duration-300 overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
                 <tr className="bg-white/5 border-b border-white/5">
                   <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-widest">Tarefa / Projeto</th>
@@ -438,7 +438,7 @@ export default function AdminTerceirizadosPage() {
               />
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Especialidade</label>
                 <input 
@@ -490,7 +490,7 @@ export default function AdminTerceirizadosPage() {
         maxW="700px"
       >
         <form onSubmit={handleSaveTask} className="space-y-6">
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             
             {/* Left Column */}
             <div className="space-y-5">
@@ -535,7 +535,7 @@ export default function AdminTerceirizadosPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Valor Combinado</label>
                   <input 

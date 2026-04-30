@@ -98,7 +98,7 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
   const clienteNome = projeto.clientes?.nome_artistico || projeto.clientes?.nome_pessoal || 'Artista';
 
   return (
-    <div style={{ padding: '40px 20px', maxWidth: 1000, margin: '0 auto' }} className="fade-up">
+    <div style={{ padding: 'clamp(20px, 4vw, 40px) clamp(16px, 4vw, 20px)', maxWidth: 1000, margin: '0 auto' }} className="fade-up">
       {/* Brand Header */}
       <div style={{ textAlign: 'center', marginBottom: 50 }}>
         <div style={{ 
@@ -111,7 +111,7 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
             Our Dreams Studio • Tracking
           </span>
         </div>
-        <h1 style={{ fontSize: 36, fontWeight: 800, marginBottom: 8 }}>
+        <h1 style={{ fontSize: 'clamp(24px, 6vw, 36px)', fontWeight: 800, marginBottom: 8 }}>
           Olá, <span className="gradient-text">{clienteNome}</span>
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: 16 }}>
@@ -119,7 +119,7 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 32 }}>
+      <div className="public-layout-grid">
         {/* Main Content: Stepper */}
         <div className="glass" style={{ padding: '32px' }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 32, display: 'flex', alignItems: 'center', gap: 10 }}>

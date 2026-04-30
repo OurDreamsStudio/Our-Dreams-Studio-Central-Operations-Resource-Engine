@@ -76,7 +76,7 @@ export default async function DashboardPage() {
 
   if (error) {
     return (
-      <div style={{ padding: '32px 36px', maxWidth: 1200 }} className="fade-up">
+      <div style={{ padding: 'var(--page-padding-y, 32px) var(--page-padding-x, 36px)', maxWidth: 1200 }} className="fade-up">
         <div style={{ padding: 24, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 16 }}>
           <div style={{ color: '#ef4444', fontWeight: 600, fontSize: 16, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Activity size={20} />
@@ -89,7 +89,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 1200 }} className="fade-up">
+    <div style={{ padding: 'var(--page-padding-y, 32px) var(--page-padding-x, 36px)', maxWidth: 1200 }} className="fade-up">
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
@@ -101,7 +101,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 32 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 24 }} className="stats-grid">
         {stats.map((s) => (
           <div
             key={s.label}
@@ -114,7 +114,7 @@ export default async function DashboardPage() {
               </div>
               <div style={{ color: s.color, opacity: 0.8 }}>{s.icon}</div>
             </div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: s.color, lineHeight: 1 }}>
+            <div style={{ fontSize: 'clamp(20px, 4vw, 32px)', fontWeight: 800, color: s.color, lineHeight: 1 }}>
               {s.value}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
@@ -124,7 +124,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 20, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)', gap: 16, marginBottom: 24 }} className="dashboard-grid">
         {/* Receita por Serviço Bar Chart */}
         <div className="glass" style={{ padding: '24px 26px' }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 20, color: 'var(--text-primary)' }}>

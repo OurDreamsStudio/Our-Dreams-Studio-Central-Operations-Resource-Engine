@@ -50,9 +50,9 @@ export default function LeadsPage() {
   const naoLidos = leads.filter(l => !l.lido).length;
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 1000, margin: '0 auto' }} className="fade-up">
+    <div style={{ padding: 'clamp(20px, 4vw, 32px) clamp(16px, 4vw, 40px)', maxWidth: 1000, margin: '0 auto' }} className="fade-up">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
             <Inbox className="text-accent" />
@@ -62,7 +62,7 @@ export default function LeadsPage() {
             Formulários preenchidos na landing page
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           {naoLidos > 0 && (
             <div style={{
               padding: '6px 14px', borderRadius: 20,
@@ -97,7 +97,7 @@ export default function LeadsPage() {
           <Loader2 className="animate-spin text-accent" size={36} />
         </div>
       ) : leads.length === 0 ? (
-        <div className="glass" style={{ padding: '80px 40px', borderRadius: 20, textAlign: 'center' }}>
+        <div className="glass" style={{ padding: 'clamp(40px, 8vw, 80px) clamp(20px, 4vw, 40px)', borderRadius: 20, textAlign: 'center' }}>
           <Inbox size={48} style={{ color: 'var(--text-muted)', margin: '0 auto 16px' }} />
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8 }}>
             Nenhum lead ainda
@@ -121,16 +121,16 @@ export default function LeadsPage() {
               key={lead.id}
               className="glass"
               style={{
-                padding: '20px 24px', borderRadius: 16,
+                padding: 'clamp(16px, 3vw, 20px) clamp(16px, 3vw, 24px)', borderRadius: 16,
                 border: `1px solid ${lead.lido ? 'var(--border)' : (tColor ? tColor.border : 'rgba(124,58,237,0.4)')}`,
                 boxShadow: lead.lido ? 'none' : (tColor ? `0 0 20px ${tColor.bg}` : '0 0 20px rgba(124,58,237,0.08)'),
                 opacity: lead.lido ? 0.7 : 1,
                 transition: '0.2s',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
                 {/* Lead info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ flex: '1 1 250px', minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <div style={{
                       width: 40, height: 40, borderRadius: 12, flexShrink: 0,
