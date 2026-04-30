@@ -278,3 +278,148 @@ body {
   }
 }
 
+/* ============================================================
+   GLOBAL FORM & BUTTON POLISH
+   ============================================================ */
+
+/* Prevent iOS from zooming on focus by forcing ≥16px */
+input, select, textarea {
+  font-size: 16px !important;
+}
+@media (min-width: 640px) {
+  input, select, textarea { font-size: 14px !important; }
+}
+
+/* Field input: shared style used across all forms */
+.field-input {
+  display: block;
+  width: 100%;
+  padding: 11px 14px;
+  background: var(--bg-base);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+}
+.field-input:focus {
+  border-color: var(--accent-light);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+.field-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Field label */
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* Primary button utility */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px var(--accent-glow);
+  min-height: 44px;
+  white-space: nowrap;
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-light);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 25px var(--accent-glow);
+  }
+}
+
+/* Secondary button utility */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 40px;
+  white-space: nowrap;
+}
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(255,255,255,0.08);
+  color: var(--text-primary);
+  border-color: rgba(255,255,255,0.18);
+}
+.btn-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Danger button utility */
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(239,68,68,0.08);
+  color: #ef4444;
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 40px;
+}
+.btn-danger:hover:not(:disabled) {
+  background: rgba(239,68,68,0.15);
+}
+
+/* Touch-safe minimum tap targets on mobile */
+@media (max-width: 767px) {
+  button, [role="button"] {
+    min-height: 40px;
+  }
+  .btn-primary { width: 100%; justify-content: center; }
+}
+
+/* Dashboard grid: equal 2-col on desktop */
+@media (min-width: 768px) {
+  .dashboard-grid-equal {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* table-row hover */
+.table-row:hover {
+  background: rgba(255,255,255,0.02);
+}

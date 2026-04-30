@@ -246,29 +246,65 @@ export default function AdminDatabasePage() {
 
   return (
     <>
-      <div style={{ padding: 'clamp(20px, 4vw, 32px) clamp(16px, 4vw, 40px)', maxWidth: 1400, margin: '0 auto' }} className="fade-up">
+      <div style={{ padding: 'clamp(16px, 4vw, 32px) clamp(12px, 4vw, 40px)', maxWidth: 1400, margin: '0 auto' }} className="fade-up">
+
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>
-            Sala de <span className="gradient-text">Máquinas</span>
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-            Gestão direta do banco de dados (Server Actions / RLS Secured)
-          </p>
+      <div style={{ marginBottom: 20 }}>
+        {/* Title Row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+          <div>
+            <h1 style={{ fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 700, marginBottom: 4 }}>
+              Sala de <span className="gradient-text">Máquinas</span>
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+              Gestão direta do banco de dados (Server Actions / RLS Secured)
+            </p>
+          </div>
+
+          {/* Tab switcher: always visible, compact */}
+          <div style={{ display: 'flex', gap: 6, background: 'var(--bg-surface)', padding: 3, borderRadius: 10, border: '1px solid var(--border)', height: 'fit-content' }}>
+            <button
+              disabled={loading || isPending}
+              onClick={() => setActiveTab('clientes')}
+              style={{
+                padding: '7px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                background: activeTab === 'clientes' ? 'var(--accent)' : 'transparent',
+                color: activeTab === 'clientes' ? '#fff' : 'var(--text-muted)',
+                fontSize: 13, fontWeight: 600, transition: '0.2s', display: 'flex', alignItems: 'center', gap: 6,
+                opacity: (loading || isPending) ? 0.6 : 1
+              }}
+            >
+              <Users size={14} /> Clientes
+            </button>
+            <button
+              disabled={loading || isPending}
+              onClick={() => setActiveTab('projetos')}
+              style={{
+                padding: '7px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                background: activeTab === 'projetos' ? 'var(--accent)' : 'transparent',
+                color: activeTab === 'projetos' ? '#fff' : 'var(--text-muted)',
+                fontSize: 13, fontWeight: 600, transition: '0.2s', display: 'flex', alignItems: 'center', gap: 6,
+                opacity: (loading || isPending) ? 0.6 : 1
+              }}
+            >
+              <Briefcase size={14} /> Projetos
+            </button>
+          </div>
         </div>
-        
-        <div style={{ display: 'flex', gap: 12 }}>
+
+        {/* Actions Row: Rescue + Faxina */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+          {/* Rescue Mode input */}
           {activeTab === 'clientes' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.3)', padding: 4, borderRadius: 10, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <input 
-                type="text" 
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.3)', padding: '4px 6px 4px 10px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.07)', flex: '1 1 200px', minWidth: 0 }}>
+              <input
+                type="text"
                 placeholder="DDD+Número (Resgate)"
                 value={rescueNumber}
                 onChange={(e) => setRescueNumber(e.target.value)}
                 style={{
                   background: 'transparent', border: 'none', color: '#fff', outline: 'none',
-                  padding: '4px 8px', width: 150, fontSize: 12
+                  padding: '6px 4px', flex: 1, fontSize: 13, minWidth: 0
                 }}
               />
               <button
@@ -276,60 +312,36 @@ export default function AdminDatabasePage() {
                 disabled={isRescuing || !rescueNumber}
                 title="Forçar envio de fluxo inicial"
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '6px 12px', borderRadius: 8,
-                  background: isRescuing || !rescueNumber ? 'rgba(255,255,255,0.05)' : 'var(--accent)', 
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '7px 12px', borderRadius: 8, flexShrink: 0,
+                  background: isRescuing || !rescueNumber ? 'rgba(255,255,255,0.06)' : 'var(--accent)',
                   color: isRescuing || !rescueNumber ? 'var(--text-muted)' : '#fff',
-                  cursor: isRescuing || !rescueNumber ? 'not-allowed' : 'pointer', 
-                  fontSize: 12, fontWeight: 700, border: 'none', transition: '0.2s'
+                  cursor: isRescuing || !rescueNumber ? 'not-allowed' : 'pointer',
+                  fontSize: 12, fontWeight: 700, border: 'none', transition: '0.2s', whiteSpace: 'nowrap'
                 }}
               >
-                {isRescuing ? <Loader2 size={14} className="animate-spin" /> : <PlayCircle size={14} />}
+                {isRescuing ? <Loader2 size={13} className="animate-spin" /> : <PlayCircle size={13} />}
                 Disparar
               </button>
             </div>
           )}
 
-          <button 
+          {/* Faxina button */}
+          <button
             onClick={handleFaxina}
             disabled={loading || isPending}
-            className="btn-secondary"
-            style={{ 
-              padding: '8px 16px', borderRadius: 10, fontSize: 12, fontWeight: 700, 
-              color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)'
+            title="Remover projetos fantasmas"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 14px', borderRadius: 10,
+              fontSize: 12, fontWeight: 700,
+              color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)',
+              background: 'rgba(239,68,68,0.06)', cursor: 'pointer',
+              transition: '0.2s', whiteSpace: 'nowrap'
             }}
           >
             🧹 Faxina n8n
           </button>
-          
-          <div style={{ display: 'flex', gap: 12, background: 'var(--bg-surface)', padding: 4, borderRadius: 10, border: '1px solid var(--border)' }}>
-            <button 
-              disabled={loading || isPending}
-              onClick={() => setActiveTab('clientes')}
-              style={{ 
-                padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                background: activeTab === 'clientes' ? 'var(--accent)' : 'transparent',
-                color: activeTab === 'clientes' ? '#fff' : 'var(--text-muted)',
-                fontSize: 13, fontWeight: 600, transition: '0.2s',
-                opacity: (loading || isPending) ? 0.6 : 1
-              }}
-            >
-              <Users size={16} style={{ marginBottom: -3, marginRight: 8 }} /> Clientes
-            </button>
-            <button 
-              disabled={loading || isPending}
-              onClick={() => setActiveTab('projetos')}
-              style={{ 
-                padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                background: activeTab === 'projetos' ? 'var(--accent)' : 'transparent',
-                color: activeTab === 'projetos' ? '#fff' : 'var(--text-muted)',
-                fontSize: 13, fontWeight: 600, transition: '0.2s',
-                opacity: (loading || isPending) ? 0.6 : 1
-              }}
-            >
-              <Briefcase size={16} style={{ marginBottom: -3, marginRight: 8 }} /> Projetos
-            </button>
-          </div>
         </div>
       </div>
 
