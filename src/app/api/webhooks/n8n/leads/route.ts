@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 // Mapeamento EXATO das strings que chegam do n8n → Pontuação
 const SCORING: Record<string, Record<string, number>> = {
   diag_status_arquivos: {
@@ -58,9 +53,16 @@ function calcularScore(cliente: Record<string, string>): { score: number; temper
 
 export async function POST(req: Request) {
   try {
+    // Criar cliente dentro da função para garantir acesso às env vars no Vercel
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     // 1. Validar Secret
     const authHeader = req.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.WEBHOOK_SECRET}`) {
+      console.log('Auth falhou. Header recebido:', authHeader);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -106,7 +108,8 @@ export async function POST(req: Request) {
     }, { status: 200 });
 
   } catch (error: unknown) {
-    console.error('Webhook Lead Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('Webhook Lead Error:', msg);
+    return NextResponse.json({ error: 'Internal Server Error', detail: msg }, { status: 500 });
   }
 }
