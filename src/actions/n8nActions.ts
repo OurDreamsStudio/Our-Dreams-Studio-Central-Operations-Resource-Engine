@@ -27,11 +27,12 @@ export async function triggerRescueFlow(whatsappNumber: string) {
           conversation: 'Olá, quero dar continuidade'
         },
         data: {
+          key: {
+            remoteJid: `55${cleanNumber}@s.whatsapp.net`,
+            fromMe: false
+          },
           message: {
-            conversation: 'Olá, quero dar continuidade',
-            key: {
-              remoteJid: `55${cleanNumber}@s.whatsapp.net`
-            }
+            conversation: 'Olá, quero dar continuidade'
           }
         },
         source: 'ThePulse_RescueMode'
