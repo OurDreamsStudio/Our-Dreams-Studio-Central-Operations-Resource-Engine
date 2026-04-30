@@ -271,12 +271,13 @@ export default function ProducaoPage() {
                 style={{
                   background: 'var(--bg-surface)',
                   border: `1px solid ${isOver ? getStatusTheme(col.id).border : 'var(--border)'}`,
-                  borderRadius: 14,
-                  padding: '16px 12px',
+                  borderRadius: 12,
+                  padding: isMobile ? '12px 10px' : '16px 12px',
                   boxShadow: isOver ? `0 0 20px ${getStatusTheme(col.id).bg}` : 'none',
                   transition: 'border-color 0.2s, box-shadow 0.2s',
-                  minHeight: 400,
-                  minWidth: 280,
+                  minHeight: isMobile ? 200 : 400,
+                  minWidth: isMobile ? 220 : 260,
+                  maxWidth: isMobile ? 240 : undefined,
                   display: 'flex', flexDirection: 'column',
                 }}
               >
@@ -312,8 +313,8 @@ export default function ProducaoPage() {
                         style={{
                           background: isDragging ? 'rgba(124,58,237,0.15)' : 'var(--bg-card)',
                           border: `1px solid ${isDragging ? 'var(--accent)' : 'var(--border)'}`,
-                          borderRadius: 12,
-                          padding: '16px',
+                          borderRadius: 10,
+                          padding: isMobile ? '10px' : '16px',
                           cursor: 'grab',
                           opacity: isDragging ? 0.5 : 1,
                           transition: 'all 0.15s',
@@ -321,18 +322,18 @@ export default function ProducaoPage() {
                         }}
                       >
                         {/* Card top: Name */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, marginBottom: isMobile ? 8 : 12 }}>
                           <div style={{
-                            width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+                            width: isMobile ? 28 : 38, height: isMobile ? 28 : 38, borderRadius: 8, flexShrink: 0,
                             background: `linear-gradient(135deg, ${getAvatarColor(av)}, ${getAvatarColor(av)}99)`,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontWeight: 700, fontSize: 15, color: '#fff',
+                            fontWeight: 700, fontSize: isMobile ? 11 : 15, color: '#fff',
                           }}>
                             {av.charAt(0).toUpperCase()}
                           </div>
-                          <div style={{ minWidth: 0 }}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
                             <Link href={`/clientes/${proj.cliente_id}`} style={{ textDecoration: 'none' }}>
-                              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              <div style={{ fontWeight: 700, fontSize: isMobile ? 12 : 15, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {av}
                               </div>
                             </Link>
@@ -456,16 +457,16 @@ export default function ProducaoPage() {
                           const nextCol = COLUMNS[colIdx + 1];
                           if (!prevCol && !nextCol) return null;
                           return (
-                            <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                            <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
                               {prevCol && (
                                 <button
                                   onClick={async () => {
                                     setDragging(proj.id);
                                     await handleDrop(prevCol.id);
                                   }}
-                                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 11, fontWeight: 600 }}
+                                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 4px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, minHeight: 36 }}
                                 >
-                                  <ChevronLeft size={14} /> {prevCol.label}
+                                  <ChevronLeft size={12} />
                                 </button>
                               )}
                               {nextCol && (
@@ -474,9 +475,9 @@ export default function ProducaoPage() {
                                     setDragging(proj.id);
                                     await handleDrop(nextCol.id);
                                   }}
-                                  style={{ flex: 1, background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 8, padding: '6px', cursor: 'pointer', color: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 11, fontWeight: 600 }}
+                                  style={{ flex: 1, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.4)', borderRadius: 6, padding: '7px 4px', cursor: 'pointer', color: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, minHeight: 36 }}
                                 >
-                                  {nextCol.label} <ChevronRight size={14} />
+                                  <ChevronRight size={12} />
                                 </button>
                               )}
                             </div>
@@ -507,14 +508,16 @@ export default function ProducaoPage() {
       {deliveringProject && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000, padding: 20
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          zIndex: 1000, padding: isMobile ? 0 : 20
         }} className="fade-in">
           <div style={{
             background: 'var(--bg-surface)', border: '1px solid var(--border)',
-            padding: '32px', borderRadius: '16px', width: '100%', maxWidth: '400px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.4)', textAlign: 'center'
+            padding: isMobile ? '24px 20px' : '32px',
+            borderRadius: isMobile ? '20px 20px 0 0' : '16px',
+            width: '100%', maxWidth: isMobile ? '100%' : '400px',
+            boxShadow: '0 -8px 40px rgba(0,0,0,0.5)', textAlign: 'center'
           }} className="fade-up">
             
             <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(34,197,94,0.1)', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
@@ -572,14 +575,17 @@ export default function ProducaoPage() {
       {settingsProject && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000, padding: 20
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          zIndex: 1000, padding: isMobile ? 0 : 20
         }} className="fade-in">
           <div style={{
             background: 'var(--bg-surface)', border: '1px solid var(--border)',
-            padding: '32px', borderRadius: '16px', width: '100%', maxWidth: '450px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+            padding: isMobile ? '20px 16px' : '32px',
+            borderRadius: isMobile ? '20px 20px 0 0' : '16px',
+            width: '100%', maxWidth: isMobile ? '100%' : '450px',
+            maxHeight: isMobile ? '80dvh' : 'auto',
+            overflowY: 'auto', boxShadow: '0 -8px 40px rgba(0,0,0,0.5)'
           }} className="fade-up">
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>

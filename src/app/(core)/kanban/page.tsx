@@ -231,12 +231,13 @@ export default function KanbanPage() {
                 style={{
                   background: 'var(--bg-surface)',
                   border: `1px solid ${isOver ? getStatusTheme(col.id).border : 'var(--border)'}`,
-                  borderRadius: 14,
-                  padding: '16px 12px',
+                  borderRadius: 12,
+                  padding: isMobile ? '12px 10px' : '16px 12px',
                   boxShadow: isOver ? `0 0 20px ${getStatusTheme(col.id).bg}` : 'none',
                   transition: 'border-color 0.2s, box-shadow 0.2s',
-                  minHeight: 400,
-                  minWidth: 280,
+                  minHeight: isMobile ? 200 : 400,
+                  minWidth: isMobile ? 220 : 260,
+                  maxWidth: isMobile ? 240 : undefined,
                   display: 'flex', flexDirection: 'column',
                 }}
               >
@@ -269,8 +270,8 @@ export default function KanbanPage() {
                         style={{
                           background: isDragging ? 'rgba(124,58,237,0.15)' : 'var(--bg-card)',
                           border: `1px solid ${isDragging ? 'var(--accent)' : 'var(--border)'}`,
-                          borderRadius: 12,
-                          padding: '14px',
+                          borderRadius: 10,
+                          padding: isMobile ? '10px' : '14px',
                           cursor: 'grab',
                           opacity: isDragging ? 0.5 : 1,
                           transition: 'all 0.15s',
@@ -278,26 +279,28 @@ export default function KanbanPage() {
                         }}
                       >
                         {/* Card top */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                             <div style={{
-                              width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                              width: isMobile ? 28 : 34, height: isMobile ? 28 : 34, borderRadius: 8, flexShrink: 0,
                               background: `linear-gradient(135deg, ${getAvatarColor(av)}, ${getAvatarColor(av)}99)`,
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontWeight: 700, fontSize: 14, color: '#fff',
+                              fontWeight: 700, fontSize: isMobile ? 11 : 13, color: '#fff',
                             }}>
                               {av.charAt(0).toUpperCase()}
                             </div>
                             <div style={{ minWidth: 0 }}>
                               <Link href={`/clientes/${proj.id}`} style={{ textDecoration: 'none' }}>
-                                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <div style={{ fontWeight: 700, fontSize: isMobile ? 12 : 14, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   {av}
                                 </div>
                               </Link>
+                              {!isMobile && (
                               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {proj.instagram || proj.email}
                               </div>
-                              {proj.instagram || proj.email}
+                              )}
+                              {!isMobile && proj.instagram || proj.email}
                             </div>
                           </div>
                           
@@ -350,17 +353,17 @@ export default function KanbanPage() {
                           const nextCol = COLUMNS[colIdx + 1];
                           if (!prevCol && !nextCol) return null;
                           return (
-                            <div style={{ display: 'flex', gap: 6, marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                            <div style={{ display: 'flex', gap: 4, marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 6 }}>
                               {prevCol && (
                                 <button
                                   onClick={async () => {
                                     setDragging(proj.id);
                                     await handleDrop(prevCol.id);
                                   }}
-                                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 11, fontWeight: 600 }}
+                                  style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, padding: '7px 4px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, fontSize: 10, fontWeight: 700, minHeight: 36 }}
                                   title={`← ${prevCol.label}`}
                                 >
-                                  <ChevronLeft size={14} /> {prevCol.label.split(' ')[0]}
+                                  <ChevronLeft size={12} />
                                 </button>
                               )}
                               {nextCol && (
@@ -369,10 +372,10 @@ export default function KanbanPage() {
                                     setDragging(proj.id);
                                     await handleDrop(nextCol.id);
                                   }}
-                                  style={{ flex: 1, background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 8, padding: '6px', cursor: 'pointer', color: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 11, fontWeight: 600 }}
+                                  style={{ flex: 1, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.4)', borderRadius: 6, padding: '7px 4px', cursor: 'pointer', color: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, fontSize: 10, fontWeight: 700, minHeight: 36 }}
                                   title={`${nextCol.label} →`}
                                 >
-                                  {nextCol.label.split(' ')[0]} <ChevronRight size={14} />
+                                  <ChevronRight size={12} />
                                 </button>
                               )}
                             </div>
@@ -419,14 +422,17 @@ export default function KanbanPage() {
       {closingProject && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000, padding: 20
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          zIndex: 1000, padding: isMobile ? 0 : 20
         }}>
           <div style={{
             background: 'var(--bg-surface)', border: '1px solid var(--border)',
-            padding: '32px', borderRadius: '16px', width: '100%', maxWidth: '500px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+            padding: isMobile ? '20px 16px' : '28px',
+            borderRadius: isMobile ? '20px 20px 0 0' : '16px',
+            width: '100%', maxWidth: isMobile ? '100%' : '500px',
+            maxHeight: isMobile ? '90dvh' : '85dvh',
+            overflowY: 'auto', boxShadow: '0 -8px 40px rgba(0,0,0,0.5)'
           }} className="fade-up">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <h2 style={{ fontSize: 20, fontWeight: 700 }}>CPQ: Fechar Projeto</h2>
@@ -466,7 +472,7 @@ export default function KanbanPage() {
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 12, color: 'var(--text-primary)' }}>
                   Serviços (Múltipla Escolha)
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }} className="form-grid-2">
+                <div className="form-grid-2" style={{ gap: 8 }}>
                   {SERVICOS.map((servico) => (
                     <label key={servico} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '10px 12px', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 8 }}>
                       <input
@@ -528,7 +534,7 @@ export default function KanbanPage() {
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="form-grid-2" style={{ gap: 12 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>
                     Valor Total (Soma Automática)

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { X } from 'lucide-react';
 
 interface StandardModalProps {
@@ -6,60 +6,132 @@ interface StandardModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
-  footer?: ReactNode; // Optional footer block with actions
+  footer?: ReactNode;
   maxW?: string;
 }
 
-export function StandardModal({ isOpen, onClose, title, children, footer, maxW = '400px' }: StandardModalProps) {
+export function StandardModal({ isOpen, onClose, title, children, footer, maxW = '500px' }: StandardModalProps) {
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
     <>
-      {/* Overlay: Fixed teletransport */}
-      <div 
-        className="fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity z-[9998]"
+      {/* Overlay */}
+      <div
         onClick={onClose}
-        style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }}
+        style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.75)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 9998,
+        }}
       />
-      
-      {/* Modal Container */}
-      <div className="fixed inset-0 z-[9999] overflow-y-auto">
-        <div className="flex min-h-full items-center justify-center p-4">
-          <div 
-            className="w-full bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl relative overflow-hidden ring-1 ring-white/10"
-            style={{ maxWidth: maxW, margin: 'auto' }}
-          >
-            {/* Ambient Base Glow */}
-            <div className="absolute inset-x-0 -top-px h-px w-full bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
-            <div className="absolute top-0 right-[-20%] w-[100px] h-[100px] bg-purple-500/20 blur-[80px] rounded-full" />
-            
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-800 relative z-10">
-              <h2 className="text-xl font-medium text-white tracking-wide">
-                {title}
-              </h2>
-              <button
-                onClick={onClose}
-                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800/80 transition-all duration-300 group"
-              >
-                <X className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
-              </button>
-            </div>
-            
-            {/* Content Body */}
-            <div className="p-6 relative z-10">
-              {children}
-            </div>
 
-            {/* Footer */}
-            {footer && (
-              <div className="p-6 border-t border-slate-800 bg-slate-900/50 flex flex-col sm:flex-row gap-3 items-center justify-end">
-                {footer}
-              </div>
-            )}
+      {/* Bottom-sheet container on mobile, centered on desktop */}
+      <div style={{
+        position: 'fixed', inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        padding: 0,
+      }}>
+        <div
+          className="standard-modal-inner"
+          style={{
+            width: '100%',
+            maxWidth: maxW,
+            background: 'var(--bg-surface)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '20px 20px 0 0',
+            boxShadow: '0 -8px 60px rgba(0,0,0,0.6)',
+            maxHeight: '92dvh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
+          {/* Drag handle pill */}
+          <div style={{
+            width: 40, height: 4, borderRadius: 2,
+            background: 'rgba(255,255,255,0.15)',
+            margin: '12px auto 0',
+            flexShrink: 0,
+          }} />
+
+          {/* Top line glow */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+            background: 'linear-gradient(90deg, transparent, rgba(124,58,237,0.5), transparent)',
+          }} />
+
+          {/* Header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '16px 20px 14px',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            flexShrink: 0,
+          }}>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: '#fff', margin: 0 }}>
+              {title}
+            </h2>
+            <button
+              onClick={onClose}
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'var(--text-muted)', cursor: 'pointer',
+                borderRadius: 10, padding: 8,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.2s',
+              }}
+            >
+              <X size={16} />
+            </button>
           </div>
+
+          {/* Scrollable Body */}
+          <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
+            {children}
+          </div>
+
+          {/* Footer */}
+          {footer && (
+            <div style={{
+              padding: '16px 20px',
+              borderTop: '1px solid rgba(255,255,255,0.06)',
+              background: 'rgba(0,0,0,0.2)',
+              display: 'flex', flexDirection: 'column', gap: 10,
+              flexShrink: 0,
+            }}>
+              {footer}
+            </div>
+          )}
         </div>
       </div>
+
+      <style>{`
+        @media (min-width: 640px) {
+          .standard-modal-inner {
+            border-radius: 16px !important;
+            margin: auto !important;
+            margin-bottom: 40px !important;
+          }
+          .standard-modal-inner > div:first-child {
+            display: none !important;
+          }
+        }
+      `}</style>
     </>
   );
 }

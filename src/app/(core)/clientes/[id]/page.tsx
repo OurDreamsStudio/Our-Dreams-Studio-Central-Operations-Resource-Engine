@@ -140,7 +140,7 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
     .reduce((a, p) => a + Number(p.valor_fechado || 0), 0);
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 900 }} className="fade-up">
+    <div style={{ padding: 'clamp(20px, 4vw, 32px) clamp(16px, 4vw, 36px)', maxWidth: 900 }} className="fade-up">
       {/* Top Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <button 
@@ -232,7 +232,7 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* Diagnóstico & Financeiro */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+      <div className="dashboard-grid" style={{ display: 'grid', gap: 20, marginBottom: 20 }}>
         {/* Diagnóstico */}
         <div className="glass" style={{ padding: '20px 24px' }}>
           <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -294,7 +294,7 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* n8n Status & Cofre do Engenheiro */}
-      <div style={{ display: 'grid', gridTemplateColumns: n8n ? '1fr 1fr' : '1fr', gap: 20, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: n8n ? '1fr 1fr' : '1fr', gap: 20, marginBottom: 20 }} className={n8n ? 'dashboard-grid' : ''}>
         {n8n && (
           <div className="glass" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
             <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -459,14 +459,17 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
       {showUpsell && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000, padding: 20
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          zIndex: 1000, padding: 0
         }} className="fade-in">
           <div style={{
             background: 'var(--bg-surface)', border: '1px solid var(--border)',
-            padding: '32px', borderRadius: '16px', width: '100%', maxWidth: '500px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+            padding: 'clamp(20px, 4vw, 32px)',
+            borderRadius: '20px 20px 0 0',
+            width: '100%', maxWidth: '100%',
+            maxHeight: '90dvh', overflowY: 'auto',
+            boxShadow: '0 -8px 40px rgba(0,0,0,0.5)'
           }} className="fade-up">
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -481,7 +484,7 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 12, color: 'var(--text-primary)' }}>
                   Serviços (Múltipla Escolha)
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="form-grid-2" style={{ gap: 10 }}>
                   {SERVICOS.map((servico) => (
                     <label key={servico} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '10px 12px', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 8 }}>
                       <input
@@ -499,7 +502,7 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="form-grid-2" style={{ gap: 16 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>Valor Total (R$)</label>
                   <input
