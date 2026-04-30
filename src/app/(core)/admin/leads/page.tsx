@@ -1,17 +1,14 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { Inbox, Mail, MailOpen, Trash2, Phone, MessageSquare, Loader2, RefreshCw, UserPlus, PlayCircle } from 'lucide-react';
+import { Inbox, Mail, MailOpen, Trash2, Phone, MessageSquare, Loader2, RefreshCw, UserPlus } from 'lucide-react';
 import { getLeads, marcarLeadComoLido, deleteLead } from '@/actions/leadsActions';
-import { triggerRescueFlow } from '@/actions/n8nActions';
 import { handleSupabaseError, formatDate } from '@/lib/utils';
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
-  const [rescueNumber, setRescueNumber] = useState('');
-  const [isRescuing, setIsRescuing] = useState(false);
 
   const fetchLeads = async () => {
     setLoading(true);
@@ -50,24 +47,6 @@ export default function LeadsPage() {
     });
   };
 
-  const handleRescue = async () => {
-    if (!rescueNumber) return;
-    setIsRescuing(true);
-    try {
-      const result = await triggerRescueFlow(rescueNumber);
-      if (result.success) {
-        alert('Gatilho de resgate enviado com sucesso para o n8n! O cliente deve receber a mensagem do robô em instantes.');
-        setRescueNumber('');
-      } else {
-        alert('Falha ao enviar: ' + result.error);
-      }
-    } catch (e: any) {
-      alert('Erro inesperado: ' + e.message);
-    } finally {
-      setIsRescuing(false);
-    }
-  };
-
   const naoLidos = leads.filter(l => !l.lido).length;
 
   return (
@@ -95,37 +74,6 @@ export default function LeadsPage() {
               {naoLidos} não {naoLidos === 1 ? 'lido' : 'lidos'}
             </div>
           )}
-
-          {/* Componente Rescue Mode */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.3)', padding: 6, borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
-            <input 
-              type="text" 
-              placeholder="DDD + Número (Resgate)"
-              value={rescueNumber}
-              onChange={(e) => setRescueNumber(e.target.value)}
-              style={{
-                background: 'transparent', border: 'none', color: '#fff', outline: 'none',
-                padding: '4px 8px', width: 160, fontSize: 13
-              }}
-            />
-            <button
-              onClick={handleRescue}
-              disabled={isRescuing || !rescueNumber}
-              title="Forçar envio de fluxo inicial"
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '6px 12px', borderRadius: 8,
-                background: isRescuing || !rescueNumber ? 'rgba(255,255,255,0.05)' : 'var(--accent)', 
-                color: isRescuing || !rescueNumber ? 'var(--text-muted)' : '#fff',
-                cursor: isRescuing || !rescueNumber ? 'not-allowed' : 'pointer', 
-                fontSize: 12, fontWeight: 700, border: 'none', transition: '0.2s'
-              }}
-            >
-              {isRescuing ? <Loader2 size={14} className="animate-spin" /> : <PlayCircle size={14} />}
-              Disparar
-            </button>
-          </div>
-
           <button
             onClick={fetchLeads}
             disabled={loading || isPending}

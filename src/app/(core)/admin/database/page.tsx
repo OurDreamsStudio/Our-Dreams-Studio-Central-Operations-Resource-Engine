@@ -20,7 +20,8 @@ import {
   Check,
   Disc,
   Tag,
-  DollarSign
+  DollarSign,
+  PlayCircle
 } from 'lucide-react';
 import { ETAPAS_VENDAS, ETAPAS_PRODUCAO, SERVICOS, getStatusTheme } from '@/constants/workflow';
 import { Cliente, Projeto, ProjetoComCliente, Terceirizado } from '@/types';
@@ -40,6 +41,7 @@ import {
   deleteProjeto,
   faxinaProjetosFantasmas
 } from '@/actions/databaseActions';
+import { triggerRescueFlow } from '@/actions/n8nActions';
 
 type Tab = 'clientes' | 'projetos';
 
@@ -47,6 +49,8 @@ export default function AdminDatabasePage() {
   const [activeTab, setActiveTab] = useState<Tab>('clientes');
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const [rescueNumber, setRescueNumber] = useState('');
+  const [isRescuing, setIsRescuing] = useState(false);
   const router = useRouter();
   
   // Data
@@ -222,6 +226,24 @@ export default function AdminDatabasePage() {
     });
   };
 
+  const handleRescue = async () => {
+    if (!rescueNumber) return;
+    setIsRescuing(true);
+    try {
+      const result = await triggerRescueFlow(rescueNumber);
+      if (result.success) {
+        alert('Gatilho de resgate enviado com sucesso para o n8n! O cliente deve receber a mensagem do robô em instantes.');
+        setRescueNumber('');
+      } else {
+        alert('Falha ao enviar: ' + result.error);
+      }
+    } catch (e: any) {
+      alert('Erro inesperado: ' + e.message);
+    } finally {
+      setIsRescuing(false);
+    }
+  };
+
   return (
     <>
       <div style={{ padding: '32px 40px', maxWidth: 1400, margin: '0 auto' }} className="fade-up">
@@ -237,6 +259,37 @@ export default function AdminDatabasePage() {
         </div>
         
         <div style={{ display: 'flex', gap: 12 }}>
+          {activeTab === 'clientes' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.3)', padding: 4, borderRadius: 10, border: '1px solid rgba(255,255,255,0.05)' }}>
+              <input 
+                type="text" 
+                placeholder="DDD+Número (Resgate)"
+                value={rescueNumber}
+                onChange={(e) => setRescueNumber(e.target.value)}
+                style={{
+                  background: 'transparent', border: 'none', color: '#fff', outline: 'none',
+                  padding: '4px 8px', width: 150, fontSize: 12
+                }}
+              />
+              <button
+                onClick={handleRescue}
+                disabled={isRescuing || !rescueNumber}
+                title="Forçar envio de fluxo inicial"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '6px 12px', borderRadius: 8,
+                  background: isRescuing || !rescueNumber ? 'rgba(255,255,255,0.05)' : 'var(--accent)', 
+                  color: isRescuing || !rescueNumber ? 'var(--text-muted)' : '#fff',
+                  cursor: isRescuing || !rescueNumber ? 'not-allowed' : 'pointer', 
+                  fontSize: 12, fontWeight: 700, border: 'none', transition: '0.2s'
+                }}
+              >
+                {isRescuing ? <Loader2 size={14} className="animate-spin" /> : <PlayCircle size={14} />}
+                Disparar
+              </button>
+            </div>
+          )}
+
           <button 
             onClick={handleFaxina}
             disabled={loading || isPending}
@@ -335,10 +388,21 @@ export default function AdminDatabasePage() {
                 return (
                 <tr key={item.id} className="table-row" style={{ borderBottom: '1px solid var(--border)', transition: '0.2s' }}>
                   <td style={{ padding: '16px 24px' }}>
-                    <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
                       {isCliente 
                         ? (c.nome_artistico || c.nome_pessoal) 
                         : (p.nome || p.servicos_fechados || p.tipo_servico || 'Sem Nome')}
+                      {isCliente && (c as any).temperature && (
+                          <span style={{
+                            fontSize: 10, fontWeight: 700,
+                            background: (c as any).temperature === 'Hot' ? 'rgba(239,68,68,0.15)' : (c as any).temperature === 'Warm' ? 'rgba(249,115,22,0.15)' : 'rgba(56,189,248,0.15)', 
+                            color: (c as any).temperature === 'Hot' ? '#ef4444' : (c as any).temperature === 'Warm' ? '#f97316' : '#38bdf8', 
+                            border: `1px solid ${(c as any).temperature === 'Hot' ? 'rgba(239,68,68,0.3)' : (c as any).temperature === 'Warm' ? 'rgba(249,115,22,0.3)' : 'rgba(56,189,248,0.3)'}`,
+                            padding: '2px 6px', borderRadius: 4, display: 'inline-flex', alignItems: 'center'
+                          }}>
+                            {(c as any).temperature.toUpperCase()}
+                          </span>
+                      )}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ID: {item.id.substring(0,8)}...</div>
                   </td>
