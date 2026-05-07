@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { submitLead } from '@/actions/leadsActions';
+import { PortfolioSection } from '@/components/ui/PortfolioSection';
 
 export default function LandingPage() {
   const glassClasses = "bg-white/60 backdrop-blur-lg border border-white/80 shadow-lg";
@@ -86,7 +87,7 @@ export default function LandingPage() {
             >
               <div className="relative">
                 <div className="w-24 h-24 rounded-full border-2 border-white shadow-md overflow-hidden ring-4 ring-[#460362]/5 group-hover:ring-[#460362]/10 transition-all">
-                  <img src="equipe/maq.jpg" alt="Foto Maq" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                  <img src="/equipe/maq.jpg" alt="Foto Maq" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                 </div>
                 <div className="absolute -bottom-1 -right-1 bg-[#1DB954] p-1.5 rounded-full shadow-sm">
                   <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.84.241 1.2zM20.16 9.6C15.84 7.08 9.24 6.9 5.4 8.04c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38 4.32-1.32 11.52-1.14 16.32 1.68.54.3 0.72 1.02.42 1.56-.3.54-1.02.66-1.5.42z" /></svg>
@@ -110,7 +111,7 @@ export default function LandingPage() {
             >
               <div className="relative">
                 <div className="w-24 h-24 rounded-full border-2 border-white shadow-md overflow-hidden ring-4 ring-[#460362]/5 group-hover:ring-[#460362]/10 transition-all">
-                  <img src="equipe/matheus.JPEG" alt="Foto Matheus" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                  <img src="/equipe/matheus.jpg" alt="Foto Matheus" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                 </div>
                 <div className="absolute -bottom-1 -right-1 bg-[#1DB954] p-1.5 rounded-full shadow-sm">
                   <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.84.241 1.2zM20.16 9.6C15.84 7.08 9.24 6.9 5.4 8.04c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38 4.32-1.32 11.52-1.14 16.32 1.68.54.3 0.72 1.02.42 1.56-.3.54-1.02.66-1.5.42z" /></svg>
@@ -134,7 +135,7 @@ export default function LandingPage() {
             >
               <div className="relative">
                 <div className="w-24 h-24 rounded-full border-2 border-white shadow-md overflow-hidden ring-4 ring-[#460362]/5 group-hover:ring-[#460362]/10 transition-all">
-                  <img src="equipe/seven.jpg" alt="Foto S7ven" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                  <img src="/equipe/seven.jpg" alt="Foto S7ven" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                 </div>
                 <div className="absolute -bottom-1 -right-1 bg-[#1DB954] p-1.5 rounded-full shadow-sm">
                   <svg viewBox="0 0 24 24" fill="white" className="w-4 h-4"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.54.659.301 1.02zm1.44-3.3c-.301.42-.84.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.84.241 1.2zM20.16 9.6C15.84 7.08 9.24 6.9 5.4 8.04c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38 4.32-1.32 11.52-1.14 16.32 1.68.54.3 0.72 1.02.42 1.56-.3.54-1.02.66-1.5.42z" /></svg>
@@ -151,48 +152,8 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* The Vision (Portfolios) */}
-        <section id="vision" className="w-full max-w-6xl mb-32">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-neutral-900 mb-4">The Vision</h2>
-            <p className="text-neutral-500 max-w-lg mx-auto">Explore os mundos visuais que criamos. Uma vitrine de nossos melhores trabalhos de edição e design.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-[250px]">
-            {/* Masonry Layout Blocks */}
-            <div className={`md:col-span-2 md:row-span-2 rounded-3xl p-3 ${glassClasses}`}>
-              <div className="w-full h-full rounded-2xl bg-neutral-100/50 flex flex-col items-center justify-center text-neutral-400 group overflow-hidden relative">
-                <div className="absolute inset-0 bg-neutral-200/50 flex items-center justify-center">
-                  <span className="font-medium text-lg">Vídeo Reel (Em Breve)</span>
-                </div>
-              </div>
-            </div>
-
-            <div className={`rounded-3xl p-3 ${glassClasses}`}>
-              <div className="w-full h-full rounded-2xl bg-neutral-100/50 flex items-center justify-center text-neutral-400">
-                <span className="font-medium">Design Project</span>
-              </div>
-            </div>
-
-            <div className={`rounded-3xl p-3 ${glassClasses}`}>
-              <div className="w-full h-full rounded-2xl bg-neutral-100/50 flex items-center justify-center text-neutral-400">
-                <span className="font-medium">Campaign</span>
-              </div>
-            </div>
-
-            <div className={`rounded-3xl p-3 ${glassClasses}`}>
-              <div className="w-full h-full rounded-2xl bg-neutral-100/50 flex items-center justify-center text-neutral-400">
-                <span className="font-medium">VFX Breakdown</span>
-              </div>
-            </div>
-
-            <div className={`md:col-span-2 rounded-3xl p-3 ${glassClasses}`}>
-              <div className="w-full h-full rounded-2xl bg-neutral-100/50 flex items-center justify-center text-neutral-400">
-                <span className="font-medium">Editorial Series</span>
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* The Vision — Portfolio de Edição */}
+        <PortfolioSection />
 
         {/* Capture Funnel */}
         <section id="contact" className="w-full max-w-2xl mb-16">
