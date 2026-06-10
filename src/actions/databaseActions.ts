@@ -469,6 +469,20 @@ export async function confirmarEntregaProjeto(id: string, entregaPaga: boolean) 
   return true;
 }
 
+export async function desfazerEntregaProjeto(id: string, novoStatusProducao: string) {
+  await requireAuth();
+  const db = await createUserClient();
+  const { error } = await db.from('projetos').update({
+    status_producao: novoStatusProducao,
+    entrega_paga: false,
+    data_aprovacao: null,
+  }).eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/producao');
+  revalidatePath('/clientes');
+  return true;
+}
+
 // --- CLIENT PROFILE ACTIONS ---
 
 export async function getClientProfileData(id: string) {

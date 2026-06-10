@@ -5,9 +5,9 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, Save, Activity, CheckCircle, Disc, X, Share2, Check, FileText, RefreshCw, History, ChevronDown, ChevronUp } from 'lucide-react';
-import { SERVICOS, MIX_MASTER_CHECKLIST, ETAPAS_VENDAS, getStatusTheme } from '@/constants/workflow';
-import { getClientProfileData, updateClienteAnotacoes, createUpsellProject, ajustarRevisoesDisponiveis } from '@/actions/databaseActions';
+import { Plus, Save, Activity, CheckCircle, Disc, X, Share2, Check, FileText, RefreshCw, History, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
+import { SERVICOS, MIX_MASTER_CHECKLIST, ETAPAS_VENDAS, ETAPAS_PRODUCAO, getStatusTheme } from '@/constants/workflow';
+import { getClientProfileData, updateClienteAnotacoes, createUpsellProject, ajustarRevisoesDisponiveis, desfazerEntregaProjeto } from '@/actions/databaseActions';
 
 const FLUXO_LABEL: Record<string, { label: string; color: string }> = {
   AGUARDANDO_BASE:    { label: 'Aguardando Base',    color: '#8b8ba7' },
@@ -48,6 +48,11 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
   const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
   const [adjustingRev, setAdjustingRev] = useState<string | null>(null);
 
+  // Desfazer Entrega modal state
+  const [desfazerModal, setDesfazerModal] = useState<{ id: string; nome: string } | null>(null);
+  const [desfazerStage, setDesfazerStage] = useState<string>('Revisão');
+  const [submittingDesfazer, setSubmittingDesfazer] = useState(false);
+
   const handleCopyLink = (token: string, projectId: string) => {
     const url = `${window.location.origin}/p/${token}`;
     navigator.clipboard.writeText(url);
@@ -64,6 +69,26 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
       alert('Erro ao ajustar revisões: ' + err.message);
     } finally {
       setAdjustingRev(null);
+    }
+  };
+
+  const handleDesfazerEntrega = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!desfazerModal) return;
+    setSubmittingDesfazer(true);
+    try {
+      await desfazerEntregaProjeto(desfazerModal.id, desfazerStage);
+      setProjetos(prev => prev.map(p =>
+        p.id === desfazerModal.id
+          ? { ...p, status_producao: desfazerStage, entrega_paga: false, data_aprovacao: null }
+          : p
+      ));
+      setDesfazerModal(null);
+      router.refresh();
+    } catch (err: any) {
+      alert('Erro ao desfazer entrega: ' + err.message);
+    } finally {
+      setSubmittingDesfazer(false);
     }
   };
 
@@ -456,6 +481,27 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
                         </span>
                       )}
                       
+                      {/* Desfazer Entrega — only when project is delivered */}
+                      {proj.status_producao === 'Entregue' && (
+                        <button
+                          onClick={() => {
+                            setDesfazerModal({ id: proj.id, nome: proj.nome || proj.servicos_fechados || 'Projeto' });
+                            setDesfazerStage('Revisão');
+                          }}
+                          title="Desfazer entrega e retornar ao kanban de produção"
+                          style={{
+                            background: 'rgba(245,158,11,0.1)',
+                            border: '1px solid rgba(245,158,11,0.3)',
+                            borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
+                            color: '#f59e0b',
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            transition: 'all 0.2s', fontSize: 11, fontWeight: 700
+                          }}
+                        >
+                          <RotateCcw size={12} /> Desfazer Entrega
+                        </button>
+                      )}
+
                       <span className="badge" style={{ 
                         background: getStatusTheme(proj.status_funil).bg, 
                         color: getStatusTheme(proj.status_funil).text,
@@ -597,6 +643,93 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
           </div>
         )}
       </div>
+
+      {/* Desfazer Entrega Modal */}
+      {desfazerModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000, padding: 20
+        }} className="fade-in">
+          <div style={{
+            background: 'var(--bg-surface)', border: '1px solid rgba(245,158,11,0.3)',
+            padding: 28, borderRadius: 16,
+            width: '100%', maxWidth: 440,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(245,158,11,0.05)'
+          }} className="fade-up">
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <RotateCcw size={18} style={{ color: '#f59e0b' }} />
+                </div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Desfazer Entrega</h2>
+              </div>
+              <button onClick={() => setDesfazerModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{
+              padding: '12px 16px', borderRadius: 10,
+              background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+              marginBottom: 20, fontSize: 13, color: '#fcd34d', lineHeight: 1.5
+            }}>
+              ⚠️ Você está revertendo a entrega de <strong>{desfazerModal.nome}</strong>. O status de <em>entrega paga</em> e a <em>data de aprovação</em> serão redefinidos.
+            </div>
+
+            <form onSubmit={handleDesfazerEntrega} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>
+                  Retornar para qual etapa do Kanban de Produção?
+                </label>
+                <select
+                  value={desfazerStage}
+                  onChange={e => setDesfazerStage(e.target.value)}
+                  style={{
+                    width: '100%', padding: '12px 14px', borderRadius: 8,
+                    background: 'var(--bg-base)', border: '1px solid var(--border)',
+                    color: '#fff', outline: 'none', fontSize: 14
+                  }}
+                >
+                  {ETAPAS_PRODUCAO.filter(e => e !== 'Entregue').map(e => (
+                    <option key={e} value={e}>{e}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => setDesfazerModal(null)}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: 8,
+                    background: 'var(--bg-base)', color: 'var(--text-primary)', fontWeight: 600,
+                    border: '1px solid var(--border)', cursor: 'pointer',
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingDesfazer}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: 8,
+                    background: 'rgba(245,158,11,0.9)', color: '#000', fontWeight: 700,
+                    border: 'none', cursor: submittingDesfazer ? 'not-allowed' : 'pointer',
+                    opacity: submittingDesfazer ? 0.7 : 1, transition: '0.2s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                  }}
+                >
+                  <RotateCcw size={14} />
+                  {submittingDesfazer ? 'Revertendo...' : 'Confirmar Reversão'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Upsell Modal */}
       {showUpsell && (
