@@ -3,12 +3,14 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useTransition, use } from 'react';
-import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle } from 'lucide-react';
+import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, History } from 'lucide-react';
 import { handleSupabaseError, formatCurrency, formatDate } from '@/lib/utils';
 import { ETAPAS_PRODUCAO, getStatusTheme } from '@/constants/workflow';
 import { aprovarProjeto, registrarSolicitacaoRevisao } from '@/actions/databaseActions';
 import { getPublicProject } from '@/actions/publicActions'; // [SEC REFACTOR]
 import { ProjetoComCliente } from '@/types';
+
+const MAX_REVISOES = 3;
 
 export default function PublicPortalPage({ params }: { params: Promise<{ token: string }> }) {
   const unwrappedParams = use(params);
@@ -19,6 +21,7 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
   const [isPending, startTransition] = useTransition();
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [revisionFeedback, setRevisionFeedback] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     async function fetchProject() {
@@ -96,6 +99,13 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
   const isVaultUnlocked = currentStatus === 'Revisão' || currentStatus === 'Entregue';
   const isLastStage = currentIndex === ETAPAS_PRODUCAO.length - 1;
   const clienteNome = projeto.clientes?.nome_artistico || projeto.clientes?.nome_pessoal || 'Artista';
+
+  // Revision counters
+  const disponiveis = Number(projeto.revisoes_disponiveis ?? MAX_REVISOES);
+  const usadas = Number(projeto.contador_revisoes ?? 0);
+  const revisaoEsgotada = disponiveis <= 0;
+  const ultimaRevisao = disponiveis === 1;
+  const historicoRevisoes: Array<{ data: string; motivo: string; etapa: string }> = projeto.historico_revisoes || [];
 
   return (
     <div style={{ padding: 'clamp(20px, 4vw, 40px) clamp(16px, 4vw, 20px)', maxWidth: 1000, margin: '0 auto' }} className="fade-up">
@@ -206,6 +216,41 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>PREVISÃO DE ENTREGA</div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent-light)' }}>
                     {new Date(projeto.prazo_entrega).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                  </div>
+                </div>
+              )}
+
+              {/* Revision Counter — shown only when in Revisão stage or already used some */}
+              {(usadas > 0 || currentStatus === 'Revisão') && (
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>REVISÕES INCLUÍDAS</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ 
+                      fontSize: 13, color: revisaoEsgotada ? 'var(--text-muted)' : 'var(--text-secondary)', fontWeight: 500
+                    }}>
+                      {usadas} de {MAX_REVISOES} utilizadas
+                    </span>
+                    <span style={{ 
+                      fontSize: 11, fontWeight: 600, 
+                      color: revisaoEsgotada ? '#6b7280' : '#6b7280'
+                    }}>
+                      {disponiveis} restante{disponiveis !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  {/* Subtle progress bar */}
+                  <div style={{ 
+                    height: 4, borderRadius: 99, background: 'rgba(255,255,255,0.06)', overflow: 'hidden'
+                  }}>
+                    <div style={{ 
+                      height: '100%', borderRadius: 99,
+                      width: `${(usadas / MAX_REVISOES) * 100}%`,
+                      background: revisaoEsgotada 
+                        ? 'rgba(107,114,128,0.5)' 
+                        : usadas >= 2 
+                          ? 'rgba(245,158,11,0.4)' 
+                          : 'rgba(124,58,237,0.4)',
+                      transition: 'width 0.5s ease'
+                    }} />
                   </div>
                 </div>
               )}
@@ -320,17 +365,23 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
                   >
                     {isPending ? 'Processando...' : 'Aprovar Revisão'}
                   </button>
+                  {/* Solicitar Alteração — disabled when exhausted */}
                   <button
-                    onClick={() => setShowRevisionModal(true)}
-                    disabled={isPending}
+                    onClick={() => !revisaoEsgotada && setShowRevisionModal(true)}
+                    disabled={isPending || revisaoEsgotada}
+                    title={revisaoEsgotada ? 'Limite de revisões atingido' : undefined}
                     style={{ 
                       width: '100%', padding: '12px', borderRadius: 8, 
-                      background: 'transparent', color: 'var(--text-secondary)', 
-                      fontSize: 13, fontWeight: 600, cursor: isPending ? 'not-allowed' : 'pointer',
-                      border: '1px solid var(--border)', transition: '0.3s'
+                      background: 'transparent', 
+                      color: revisaoEsgotada ? 'var(--text-muted)' : 'var(--text-secondary)', 
+                      fontSize: 13, fontWeight: 600, 
+                      cursor: (isPending || revisaoEsgotada) ? 'not-allowed' : 'pointer',
+                      border: `1px solid ${revisaoEsgotada ? 'rgba(255,255,255,0.06)' : 'var(--border)'}`, 
+                      transition: '0.3s',
+                      opacity: revisaoEsgotada ? 0.45 : 1
                     }}
                   >
-                    Solicitar Alteração
+                    {revisaoEsgotada ? 'Limite de revisões atingido' : 'Solicitar Alteração'}
                   </button>
                 </div>
               )}
@@ -351,6 +402,56 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
               </p>
             </div>
           )}
+
+          {/* Revision History */}
+          {historicoRevisoes.length > 0 && (
+            <div style={{ 
+              borderRadius: 12, border: '1px solid var(--border)', 
+              background: 'rgba(255,255,255,0.015)', overflow: 'hidden'
+            }}>
+              <button
+                onClick={() => setShowHistory(h => !h)}
+                style={{
+                  width: '100%', padding: '14px 18px', background: 'none', border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  cursor: 'pointer', color: 'var(--text-secondary)'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600 }}>
+                  <History size={15} style={{ color: 'var(--text-muted)' }} />
+                  Histórico de Revisões ({historicoRevisoes.length})
+                </span>
+                {showHistory ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+              </button>
+
+              {showHistory && (
+                <div style={{ borderTop: '1px solid var(--border)', padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {historicoRevisoes.map((rev, i) => (
+                    <div key={i} style={{ 
+                      padding: '12px', borderRadius: 8, 
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.06)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                          Revisão #{i + 1}
+                        </span>
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                          {new Date(rev.data).toLocaleString('pt-BR', { 
+                            day: '2-digit', month: '2-digit', year: '2-digit',
+                            hour: '2-digit', minute: '2-digit' 
+                          })}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5, margin: 0 }}>
+                        "{rev.motivo}"
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -368,14 +469,17 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
           }}>
             <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>Solicitar Alterações</h3>
             
-            {projeto.contador_revisoes >= 3 && (
+            {/* Subtle warning when last revision */}
+            {ultimaRevisao && (
               <div style={{ 
-                padding: '12px 16px', borderRadius: 10, background: 'rgba(239,68,68,0.1)', 
-                border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', 
-                fontSize: 12, fontWeight: 700, marginBottom: 16, display: 'flex', gap: 10
+                padding: '10px 14px', borderRadius: 8, 
+                background: 'rgba(245,158,11,0.07)', 
+                border: '1px solid rgba(245,158,11,0.18)', 
+                color: '#a37c3a', 
+                fontSize: 12, marginBottom: 16, display: 'flex', gap: 8, alignItems: 'flex-start'
               }}>
-                <AlertCircle size={16} />
-                <span>Esta é sua última revisão gratuita. Próximas alterações terão custo de 15% do valor do serviço.</span>
+                <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>Esta é a sua última revisão incluída no projeto.</span>
               </div>
             )}
 
@@ -433,6 +537,12 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
           Falar com o Produtor via WhatsApp
         </a>
       </div>
+
+      <style jsx>{`
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
     </div>
   );
 }

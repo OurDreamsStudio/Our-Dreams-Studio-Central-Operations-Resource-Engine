@@ -283,13 +283,19 @@ export async function registrarSolicitacaoRevisao(projectId: string, motivo: str
 
   const { data: project, error: fetchError } = await supabaseServer
     .from('projetos')
-    .select('contador_revisoes, public_token')
+    .select('contador_revisoes, revisoes_disponiveis, public_token')
     .eq('id', projectId)
     .single();
 
   if (fetchError) throw new Error('Erro ao buscar projeto: ' + fetchError.message);
 
+  const disponiveis = Number(project?.revisoes_disponiveis ?? 3);
+  if (disponiveis <= 0) {
+    throw new Error('Limite de revisões atingido. Entre em contato com o produtor.');
+  }
+
   const nextCount = (Number(project?.contador_revisoes) || 0) + 1;
+  const nextDisponiveis = disponiveis - 1;
   const novoHistorico = [...(currentHistory || []), novoItem];
 
   const { data, error } = await supabaseServer
@@ -299,6 +305,7 @@ export async function registrarSolicitacaoRevisao(projectId: string, motivo: str
       motivo_revisao: motivo,
       historico_revisoes: novoHistorico,
       contador_revisoes: nextCount,
+      revisoes_disponiveis: nextDisponiveis,
       data_aprovacao: null,
     })
     .eq('id', projectId)
@@ -308,6 +315,25 @@ export async function registrarSolicitacaoRevisao(projectId: string, motivo: str
   revalidatePath(`/admin/projetos/${projectId}`);
   if (data?.[0]?.public_token) revalidatePath(`/p/${data[0].public_token}`);
   return data?.[0];
+}
+
+export async function ajustarRevisoesDisponiveis(projectId: string, novoValor: number) {
+  await requireAuth();
+  const db = await createUserClient();
+
+  const valor = Math.max(0, Math.min(10, Math.round(novoValor)));
+
+  const { data, error } = await db
+    .from('projetos')
+    .update({ revisoes_disponiveis: valor })
+    .eq('id', projectId)
+    .select('id, public_token, revisoes_disponiveis, contador_revisoes')
+    .single();
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/clientes`);
+  if (data?.public_token) revalidatePath(`/p/${data.public_token}`);
+  return data;
 }
 
 // --- KANBAN ACTIONS ---

@@ -15,6 +15,7 @@ export async function getPublicProject(token: string) {
       data_aprovacao,
       motivo_revisao,
       contador_revisoes,
+      revisoes_disponiveis,
       historico_revisoes,
       clientes (
         nome_artistico,

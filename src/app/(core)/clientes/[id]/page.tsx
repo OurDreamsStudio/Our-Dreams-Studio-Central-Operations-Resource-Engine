@@ -5,9 +5,9 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, Save, Activity, CheckCircle, Disc, X, Share2, Check, FileText } from 'lucide-react';
+import { Plus, Save, Activity, CheckCircle, Disc, X, Share2, Check, FileText, RefreshCw, History, ChevronDown, ChevronUp } from 'lucide-react';
 import { SERVICOS, MIX_MASTER_CHECKLIST, ETAPAS_VENDAS, getStatusTheme } from '@/constants/workflow';
-import { getClientProfileData, updateClienteAnotacoes, createUpsellProject } from '@/actions/databaseActions';
+import { getClientProfileData, updateClienteAnotacoes, createUpsellProject, ajustarRevisoesDisponiveis } from '@/actions/databaseActions';
 
 const FLUXO_LABEL: Record<string, { label: string; color: string }> = {
   AGUARDANDO_BASE:    { label: 'Aguardando Base',    color: '#8b8ba7' },
@@ -42,12 +42,29 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
   });
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  // Revision admin state: maps projectId -> overrideValue being typed
+  const [revOverride, setRevOverride] = useState<Record<string, string>>({});
+  // Expanded history: set of projectIds with history panel open
+  const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
+  const [adjustingRev, setAdjustingRev] = useState<string | null>(null);
 
   const handleCopyLink = (token: string, projectId: string) => {
     const url = `${window.location.origin}/p/${token}`;
     navigator.clipboard.writeText(url);
     setCopiedId(projectId);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleAdjustRevisoes = async (projectId: string, novoValor: number) => {
+    setAdjustingRev(projectId);
+    try {
+      const updated = await ajustarRevisoesDisponiveis(projectId, novoValor);
+      setProjetos(prev => prev.map(p => p.id === projectId ? { ...p, revisoes_disponiveis: updated.revisoes_disponiveis } : p));
+    } catch (err: any) {
+      alert('Erro ao ajustar revisões: ' + err.message);
+    } finally {
+      setAdjustingRev(null);
+    }
   };
 
   const handleViewOrcamento = (url: string) => {
@@ -448,6 +465,132 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
                       </span>
                     </div>
                   </div>
+
+                  {/* Admin Revision Controls — only for projects in production */}
+                  {proj.status_funil === 'Fechado' && (
+                    <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                        {/* Left: counters */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                          <div style={{ fontSize: 12 }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Disponíveis: </span>
+                            <span style={{
+                              fontWeight: 700,
+                              color: (proj.revisoes_disponiveis ?? 3) === 0 ? '#6b7280'
+                                : (proj.revisoes_disponiveis ?? 3) === 1 ? '#f59e0b'
+                                : 'var(--accent-light)'
+                            }}>
+                              {proj.revisoes_disponiveis ?? 3}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12 }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Usadas: </span>
+                            <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>
+                              {proj.contador_revisoes ?? 0}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Right: adjustment buttons */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <button
+                            onClick={() => handleAdjustRevisoes(proj.id, Math.max(0, (proj.revisoes_disponiveis ?? 3) - 1))}
+                            disabled={adjustingRev === proj.id || (proj.revisoes_disponiveis ?? 3) <= 0}
+                            title="Remover 1 revisão disponível"
+                            style={{
+                              padding: '4px 10px', borderRadius: 6, fontSize: 14, fontWeight: 700,
+                              background: 'rgba(239,68,68,0.1)', color: '#ef4444',
+                              border: '1px solid rgba(239,68,68,0.2)', cursor: 'pointer',
+                              opacity: (proj.revisoes_disponiveis ?? 3) <= 0 ? 0.4 : 1
+                            }}
+                          >
+                            −
+                          </button>
+                          {/* Manual override input */}
+                          <input
+                            type="number"
+                            min={0} max={10}
+                            value={revOverride[proj.id] ?? (proj.revisoes_disponiveis ?? 3)}
+                            onChange={e => setRevOverride(prev => ({ ...prev, [proj.id]: e.target.value }))}
+                            onBlur={e => {
+                              const val = parseInt(e.target.value, 10);
+                              if (!isNaN(val)) handleAdjustRevisoes(proj.id, val);
+                              setRevOverride(prev => { const n = { ...prev }; delete n[proj.id]; return n; });
+                            }}
+                            style={{
+                              width: 40, textAlign: 'center', padding: '4px 4px', borderRadius: 6,
+                              background: 'var(--bg-base)', border: '1px solid var(--border)',
+                              color: 'var(--text-primary)', fontSize: 13, fontWeight: 700, outline: 'none'
+                            }}
+                          />
+                          <button
+                            onClick={() => handleAdjustRevisoes(proj.id, Math.min(10, (proj.revisoes_disponiveis ?? 3) + 1))}
+                            disabled={adjustingRev === proj.id || (proj.revisoes_disponiveis ?? 3) >= 10}
+                            title="Restaurar 1 revisão"
+                            style={{
+                              padding: '4px 10px', borderRadius: 6, fontSize: 14, fontWeight: 700,
+                              background: 'rgba(34,197,94,0.1)', color: '#22c55e',
+                              border: '1px solid rgba(34,197,94,0.2)', cursor: 'pointer',
+                              opacity: (proj.revisoes_disponiveis ?? 3) >= 10 ? 0.4 : 1
+                            }}
+                          >
+                            +
+                          </button>
+                          {adjustingRev === proj.id && (
+                            <RefreshCw size={13} style={{ color: 'var(--text-muted)', animation: 'spin 1s linear infinite' }} />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Collapsible revision history */}
+                      {Array.isArray(proj.historico_revisoes) && proj.historico_revisoes.length > 0 && (
+                        <div style={{ marginTop: 10 }}>
+                          <button
+                            onClick={() => setExpandedHistory(prev => {
+                              const next = new Set(prev);
+                              next.has(proj.id) ? next.delete(proj.id) : next.add(proj.id);
+                              return next;
+                            })}
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer',
+                              color: 'var(--text-muted)', fontSize: 11, fontWeight: 600,
+                              display: 'flex', alignItems: 'center', gap: 5, padding: 0
+                            }}
+                          >
+                            <History size={12} />
+                            Ver histórico ({proj.historico_revisoes.length})
+                            {expandedHistory.has(proj.id) ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                          </button>
+
+                          {expandedHistory.has(proj.id) && (
+                            <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {proj.historico_revisoes.map((rev: any, ri: number) => (
+                                <div key={ri} style={{
+                                  padding: '10px 12px', borderRadius: 8,
+                                  background: 'var(--bg-base)', border: '1px solid var(--border)'
+                                }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                                      Revisão #{ri + 1}
+                                    </span>
+                                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                                      {new Date(rev.data).toLocaleString('pt-BR', {
+                                        day: '2-digit', month: '2-digit', year: '2-digit',
+                                        hour: '2-digit', minute: '2-digit'
+                                      })}
+                                    </span>
+                                  </div>
+                                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0, lineHeight: 1.4 }}>
+                                    "{rev.motivo}"
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

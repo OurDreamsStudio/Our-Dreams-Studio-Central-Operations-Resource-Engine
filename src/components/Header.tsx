@@ -156,9 +156,9 @@ export default function Header({ isMobile = false }: HeaderProps) {
           <div
             className="glass"
             style={{
-              position: 'fixed',
-              top: 56,
-              right: isMobile ? 0 : 'auto',
+              position: isMobile ? 'fixed' : 'absolute',
+              top: isMobile ? 56 : 'calc(100% + 8px)',
+              right: isMobile ? 0 : 0,
               left: isMobile ? 0 : 'auto',
               width: isMobile ? '100vw' : 380,
               maxHeight: isMobile ? '70vh' : 500,
