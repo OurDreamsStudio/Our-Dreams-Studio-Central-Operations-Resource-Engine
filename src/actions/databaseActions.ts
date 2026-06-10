@@ -137,8 +137,25 @@ export async function saveProjeto(id: string | null, projectData: Record<string,
   // Validação Zod
   const parsed = ProjetoSaveSchema.parse(projectData);
 
+  // Regra de negócio dos status no backend
+  let finalStatusFunil = parsed.status_funil || 'Inbound WhatsApp';
+  let finalStatusProducao = parsed.status_producao || null;
+
+  if (finalStatusFunil !== 'Fechado') {
+    // Se o status do funil de vendas é menor que "Fechado",
+    // o projeto não pode ter um status de produção ativo.
+    finalStatusProducao = null;
+  } else {
+    // Se o status do funil é "Fechado", ele deve ter status de produção. Se for nulo/vazio, inicia em "Definição de Escopo".
+    if (!finalStatusProducao || finalStatusProducao.trim() === '') {
+      finalStatusProducao = 'Definição de Escopo';
+    }
+  }
+
   const dataToSave = {
     ...parsed,
+    status_funil: finalStatusFunil,
+    status_producao: finalStatusProducao,
     public_token: !id ? crypto.randomUUID() : undefined,
   };
 
@@ -177,6 +194,21 @@ export async function saveProjeto(id: string | null, projectData: Record<string,
       }
     }
   }
+
+  // Sincronização do status_funil do cliente correspondente
+  if (parsed.cliente_id) {
+    const clienteStatusFunil = finalStatusFunil === 'Fechado' ? 'Concluído/Produção' : finalStatusFunil;
+    const { error: clientUpdateError } = await db
+      .from('clientes')
+      .update({ status_funil: clienteStatusFunil })
+      .eq('id', parsed.cliente_id);
+    if (clientUpdateError) {
+      console.error('Erro ao sincronizar status do cliente:', clientUpdateError.message);
+    }
+  }
+
+  revalidatePath('/kanban');
+  revalidatePath('/producao');
   revalidatePath('/admin/database');
   revalidatePath('/admin/terceirizados');
   revalidatePath('/admin/agenda');

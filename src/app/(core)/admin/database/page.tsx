@@ -68,6 +68,10 @@ export default function AdminDatabasePage() {
   const [editingProject, setEditingProject] = useState<any | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Controlled project status states
+  const [projectStatusFunil, setProjectStatusFunil] = useState<string>('Inbound WhatsApp');
+  const [projectStatusProducao, setProjectStatusProducao] = useState<string>('');
+
   // Pricing State for Modal
   const [modalServicos, setModalServicos] = useState<string[]>([]);
   const [modalPrecos, setModalPrecos] = useState<Record<string, number>>({});
@@ -178,10 +182,10 @@ export default function AdminDatabasePage() {
         alert('Erro ao salvar projeto: ' + handleSupabaseError(error));
       }
     });
-  };
-
-  const openEditProject = (project: any) => {
+  };  const openEditProject = (project: any) => {
     setEditingProject(project);
+    setProjectStatusFunil(project.status_funil || 'Inbound WhatsApp');
+    setProjectStatusProducao(project.status_producao || '');
     setModalServicos(project.servicos_fechados ? project.servicos_fechados.split(',').map((s: string) => s.trim()) : []);
     setModalPrecos(project.valores_servicos || {});
     // Reset terceiros for editing (although alocation is mostly for NEW)
@@ -344,7 +348,6 @@ export default function AdminDatabasePage() {
           </button>
         </div>
       </div>
-
       {/* Main Content Card */}
       <div className="glass" style={{ padding: 0, borderRadius: 16, overflow: 'hidden' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)' }}>
@@ -355,7 +358,20 @@ export default function AdminDatabasePage() {
             {(loading || isPending) && <Loader2 size={16} className="animate-spin text-accent" />}
           </div>
           <button 
-            onClick={() => activeTab === 'clientes' ? setShowClientModal(true) : setShowProjectModal(true)}
+            onClick={() => {
+              if (activeTab === 'clientes') {
+                setShowClientModal(true);
+              } else {
+                setEditingProject(null);
+                setProjectStatusFunil('Inbound WhatsApp');
+                setProjectStatusProducao('');
+                setModalServicos([]);
+                setModalPrecos({});
+                setSelectedTerceiros([]);
+                setTerceirosData({});
+                setShowProjectModal(true);
+              }
+            }}
             disabled={loading || isPending}
             style={{ 
               display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', 
@@ -639,23 +655,53 @@ export default function AdminDatabasePage() {
                   ))}
                 </div>
               )}
-
               <div>
                 <label className="field-label">Etapa do Funil (Vendas)</label>
-                <select name="status_funil" defaultValue={editingProject?.status_funil || 'Inbound WhatsApp'} className="field-input" disabled={isPending}>
+                <select 
+                  name="status_funil" 
+                  value={projectStatusFunil} 
+                  onChange={(e) => {
+                    const newFunil = e.target.value;
+                    setProjectStatusFunil(newFunil);
+                    if (newFunil === 'Fechado') {
+                      if (projectStatusProducao === '' || projectStatusProducao === 'Cancelado') {
+                        setProjectStatusProducao('Definição de Escopo');
+                      }
+                    } else {
+                      setProjectStatusProducao('');
+                    }
+                  }}
+                  className="field-input" 
+                  disabled={isPending}
+                >
                   {ETAPAS_VENDAS.map(e => <option key={e} value={e}>{e}</option>)}
                 </select>
               </div>
 
               <div>
                 <label className="field-label">Etapa de Produção</label>
-                <select name="status_producao" defaultValue={editingProject?.status_producao || ''} className="field-input" disabled={isPending}>
+                <select 
+                  name="status_producao" 
+                  value={projectStatusProducao} 
+                  onChange={(e) => {
+                    const newProd = e.target.value;
+                    setProjectStatusProducao(newProd);
+                    if (newProd !== '' && newProd !== 'Cancelado') {
+                      setProjectStatusFunil('Fechado');
+                    } else if (newProd === '') {
+                      if (projectStatusFunil === 'Fechado') {
+                        setProjectStatusFunil('Inbound WhatsApp');
+                      }
+                    }
+                  }}
+                  className="field-input" 
+                  disabled={isPending}
+                >
                   <option value="">Nenhuma (No Kanban ainda)</option>
                   {ETAPAS_PRODUCAO.map(e => <option key={e} value={e}>{e}</option>)}
                   <option value="Cancelado">Cancelado</option>
                 </select>
               </div>
-
               {/* [NOVO] Alocação de Terceiros / Split de Venda */}
               {!editingProject && (
                 <div style={{ gridColumn: 'span 2', background: 'rgba(124,58,237,0.03)', border: '1px solid rgba(124,58,237,0.1)', borderRadius: 12, padding: 16 }}>
