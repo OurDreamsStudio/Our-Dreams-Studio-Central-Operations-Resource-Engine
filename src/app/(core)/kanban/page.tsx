@@ -86,6 +86,7 @@ export default function KanbanPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'clientes' },
         (payload) => {
+          console.log('[Realtime] Mudança detectada na tabela clientes:', payload);
           if (payload.eventType === 'INSERT') {
             const newClient = payload.new;
             if (newClient.status_funil !== 'Concluído/Produção') {
@@ -114,7 +115,9 @@ export default function KanbanPage() {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime] Status da conexão:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
