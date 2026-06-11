@@ -11,6 +11,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { useGrabScroll } from '@/hooks/useGrabScroll';
 import { SERVICOS, ETAPAS_PRODUCAO, MIX_MASTER_CHECKLIST, ETAPAS_VENDAS, FunilStatus, getStatusTheme } from '@/constants/workflow';
 import { getClientesKanban, moverClienteFunil, fecharProjetoNoKanban } from '@/actions/databaseActions'; // [SEC REFACTOR]
+import { supabase } from '@/lib/supabase';
 
 const COLUMNS: { id: FunilStatus; label: string }[] = [
   { id: 'Inbound WhatsApp', label: 'Inbound WhatsApp' },
@@ -77,6 +78,47 @@ export default function KanbanPage() {
       }
     }
     fetchData();
+
+    // Inscreve no canal do Supabase Realtime para a tabela 'clientes'
+    const channel = supabase
+      .channel('realtime-kanban')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'clientes' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newClient = payload.new;
+            if (newClient.status_funil !== 'Concluído/Produção') {
+              setProjetos((prev) => {
+                if (prev.some((p) => p.id === newClient.id)) return prev;
+                return [newClient, ...prev];
+              });
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedClient = payload.new;
+            if (updatedClient.status_funil === 'Concluído/Produção') {
+              setProjetos((prev) => prev.filter((p) => p.id !== updatedClient.id));
+            } else {
+              setProjetos((prev) => {
+                const exists = prev.some((p) => p.id === updatedClient.id);
+                if (exists) {
+                  return prev.map((p) => (p.id === updatedClient.id ? { ...p, ...updatedClient } : p));
+                } else {
+                  return [updatedClient, ...prev];
+                }
+              });
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const oldClient = payload.old;
+            setProjetos((prev) => prev.filter((p) => p.id !== oldClient.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleDragStart = useCallback((id: string) => {

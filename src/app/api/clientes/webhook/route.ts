@@ -3,6 +3,13 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 
+// Helper para sanitizar o whatsapp_id (deixa apenas números)
+function sanitizeWhatsApp(id: string | null | undefined): string | null {
+  if (!id) return null;
+  const sanitized = id.replace(/\D/g, '');
+  return sanitized.length > 0 ? sanitized : null;
+}
+
 export async function POST(request: Request) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -48,38 +55,90 @@ export async function POST(request: Request) {
       diag_servico_interesse,
       diag_capacidade_investimento,
       nome_artistico,
-      nome_pessoal
+      nome_pessoal,
+      status_funil // Permite definir a etapa dinamicamente (ex: 'Inbound WhatsApp', 'Áudios Primordiais Enviados', 'Diagnóstico Preenchido')
     } = data;
 
-    if (!instagram) {
-      return NextResponse.json({ error: 'Instagram is required for upsert' }, { status: 400 });
+    const sanitizedWhatsappId = sanitizeWhatsApp(whatsapp_id);
+
+    if (!sanitizedWhatsappId && !instagram) {
+      return NextResponse.json({ error: 'É necessário fornecer pelo menos whatsapp_id ou instagram para identificar o cliente.' }, { status: 400 });
     }
 
-    // 1. Upsert do cliente baseado no instagram
-    const { data: upsertData, error: upsertError } = await supabase
-      .from('clientes')
-      .upsert({
-        instagram,
-        whatsapp_id: whatsapp_id || null,
-        diag_status_arquivos: diag_status_arquivos || null,
-        diag_nivel_experiencia: diag_nivel_experiencia || null,
-        diag_servico_interesse: diag_servico_interesse || null,
-        diag_capacidade_investimento: diag_capacidade_investimento || null,
-        nome_artistico: nome_artistico || null,
-        nome_pessoal: nome_pessoal || null,
-        status_funil: 'Diagnóstico Preenchido' // Define o status de Lead sem criar projeto
-      }, { onConflict: 'instagram' })
-      .select('id')
-      .single();
+    // 1. Tentar encontrar cliente existente
+    let existingClient = null;
 
-    if (upsertError) {
-      console.error('Error in upsert:', upsertError);
-      return NextResponse.json({ error: upsertError.message }, { status: 500 });
+    if (sanitizedWhatsappId) {
+      const { data: clientByWa } = await supabase
+        .from('clientes')
+        .select('id')
+        .eq('whatsapp_id', sanitizedWhatsappId)
+        .maybeSingle();
+      existingClient = clientByWa;
     }
 
-    const clientId = upsertData.id;
+    if (!existingClient && instagram) {
+      const { data: clientByIg } = await supabase
+        .from('clientes')
+        .select('id')
+        .eq('instagram', instagram)
+        .maybeSingle();
+      existingClient = clientByIg;
+    }
 
-    return NextResponse.json({ success: true, clientId, message: 'Lead capturado com sucesso (sem projeto fantasma)' });
+    const targetStatusFunil = status_funil || 'Inbound WhatsApp';
+
+    const clientFields: Record<string, any> = {};
+    if (instagram !== undefined) clientFields.instagram = instagram || null;
+    if (sanitizedWhatsappId !== undefined) clientFields.whatsapp_id = sanitizedWhatsappId || null;
+    if (diag_status_arquivos !== undefined) clientFields.diag_status_arquivos = diag_status_arquivos || null;
+    if (diag_nivel_experiencia !== undefined) clientFields.diag_nivel_experiencia = diag_nivel_experiencia || null;
+    if (diag_servico_interesse !== undefined) clientFields.diag_servico_interesse = diag_servico_interesse || null;
+    if (diag_capacidade_investimento !== undefined) clientFields.diag_capacidade_investimento = diag_capacidade_investimento || null;
+    if (nome_artistico !== undefined) clientFields.nome_artistico = nome_artistico || null;
+    if (nome_pessoal !== undefined) clientFields.nome_pessoal = nome_pessoal || null;
+    if (targetStatusFunil !== undefined) clientFields.status_funil = targetStatusFunil;
+
+    let clientId = null;
+    let operation = '';
+
+    if (existingClient?.id) {
+      // Atualizar cliente existente
+      const { data: updateData, error: updateError } = await supabase
+        .from('clientes')
+        .update(clientFields)
+        .eq('id', existingClient.id)
+        .select('id')
+        .single();
+
+      if (updateError) {
+        console.error('Error updating client:', updateError);
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+      clientId = updateData.id;
+      operation = 'updated';
+    } else {
+      // Inserir novo cliente
+      const { data: insertData, error: insertError } = await supabase
+        .from('clientes')
+        .insert([clientFields])
+        .select('id')
+        .single();
+
+      if (insertError) {
+        console.error('Error inserting client:', insertError);
+        return NextResponse.json({ error: insertError.message }, { status: 500 });
+      }
+      clientId = insertData.id;
+      operation = 'inserted';
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      clientId, 
+      operation,
+      message: `Lead processado com sucesso. Status atual: ${targetStatusFunil}` 
+    });
 
   } catch (error: any) {
     console.error('Webhook Error:', error);
