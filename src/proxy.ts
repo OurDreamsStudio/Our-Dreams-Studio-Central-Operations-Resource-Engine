@@ -35,7 +35,7 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   // Protect all routes except /login, /p/*, /t/*, /api/*, /_next/*, etc.
-  const openRoutes = ['/login', '/api', '/p', '/t', '/_next', '/favicon.ico'];
+  const openRoutes = ['/login', '/api', '/p', '/t', '/proposta', '/public', '/_next', '/favicon.ico'];
   const isPublicRoute = openRoutes.some(path => request.nextUrl.pathname.startsWith(path));
 
   // Access check
