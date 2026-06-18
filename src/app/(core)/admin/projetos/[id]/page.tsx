@@ -169,28 +169,77 @@ export default function WarRoomPage() {
                   </div>
                 )}
                 {/* Histórico Dinâmico de Revisões */}
-                 {projeto.historico_revisoes && projeto.historico_revisoes.length > 0 ? (
-                   projeto.historico_revisoes.map((rev: any, idx: number) => (
-                     <div key={idx} style={{ display: 'flex', gap: 12 }}>
-                        <div style={{ color: '#f59e0b', marginTop: 3 }}><Clock size={16} /></div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ fontSize: 13, fontWeight: 700 }}>Solicitação de Revisão #{idx + 1}</div>
-                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{new Date(rev.data).toLocaleString()}</div>
-                          </div>
-                          <div style={{ 
-                            fontSize: 12, color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.02)', 
-                            padding: '10px 14px', borderRadius: 10, marginTop: 6, border: '1px solid var(--border)',
-                            lineHeight: 1.5
-                          }}>
-                            "{rev.motivo}"
-                          </div>
-                        </div>
-                     </div>
-                   ))
+                  {projeto.historico_revisoes && projeto.historico_revisoes.length > 0 ? (
+                   projeto.historico_revisoes.map((rev: any, idx: number) => {
+                     const motivo = rev.motivo;
+                     const isEstruturado = motivo && typeof motivo === 'object' && motivo.versao === 'estruturado';
+                     
+                     // Config local para renderização (sem importar do cliente)
+                     const CATS: Record<string, { emoji: string; cor: string }> = {
+                       'Voz': { emoji: '🎤', cor: '#a855f7' }, 'Bateria': { emoji: '🥁', cor: '#f59e0b' },
+                       'Instrumentos': { emoji: '🎸', cor: '#3b82f6' }, 'Mix Geral': { emoji: '🌐', cor: '#10b981' },
+                       'Masterização': { emoji: '🔊', cor: '#ef4444' }, 'Letra / Arranjo': { emoji: '✍️', cor: '#ec4899' }, 'Outro': { emoji: '💬', cor: '#6b7280' },
+                     };
+                     const PRIS: Record<string, { emoji: string; cor: string; bg: string }> = {
+                       'Crítico': { emoji: '🔴', cor: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
+                       'Importante': { emoji: '🟡', cor: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+                       'Sugestão': { emoji: '🟢', cor: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
+                     };
+                     
+                     return (
+                       <div key={idx} style={{ display: 'flex', gap: 12 }}>
+                         <div style={{ color: '#f59e0b', marginTop: 3 }}><Clock size={16} /></div>
+                         <div style={{ flex: 1 }}>
+                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                             <div style={{ fontSize: 13, fontWeight: 700 }}>
+                               Revisão #{idx + 1}
+                               {isEstruturado && (
+                                 <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: 'var(--accent-light)', background: 'rgba(124,58,237,0.1)', padding: '1px 7px', borderRadius: 99 }}>
+                                   {motivo.pontos?.length} ponto(s)
+                                 </span>
+                               )}
+                             </div>
+                             <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{new Date(rev.data).toLocaleString()}</div>
+                           </div>
+                           
+                           {isEstruturado ? (
+                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                               {motivo.pontos?.map((ponto: any, pi: number) => {
+                                 const cat = CATS[ponto.categoria] || { emoji: '📌', cor: '#fff' };
+                                 const pri = PRIS[ponto.prioridade];
+                                 const hasTs = ponto.timestamp_min != null || ponto.timestamp_seg != null;
+                                 return (
+                                   <div key={pi} style={{ display: 'flex', gap: 10, padding: '10px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                                     <span style={{ fontSize: 15 }}>{cat.emoji}</span>
+                                     <div style={{ flex: 1 }}>
+                                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 4 }}>
+                                         <span style={{ fontSize: 10, fontWeight: 700, color: cat.cor, background: `${cat.cor}18`, border: `1px solid ${cat.cor}33`, padding: '1px 6px', borderRadius: 99 }}>{ponto.categoria}</span>
+                                         {pri && <span style={{ fontSize: 10, fontWeight: 700, color: pri.cor, background: pri.bg, padding: '1px 6px', borderRadius: 99 }}>{pri.emoji} {ponto.prioridade}</span>}
+                                         {hasTs && <span style={{ fontSize: 10, color: 'var(--text-muted)', background: 'rgba(255,255,255,0.04)', padding: '1px 6px', borderRadius: 99 }}>⏱ {String(ponto.timestamp_min ?? 0).padStart(2,'0')}:{String(ponto.timestamp_seg ?? 0).padStart(2,'0')}</span>}
+                                       </div>
+                                       <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>{ponto.descricao}</p>
+                                     </div>
+                                   </div>
+                                 );
+                               })}
+                               {motivo.observacao_geral && (
+                                 <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(245,158,11,0.04)', border: '1px dashed rgba(245,158,11,0.2)', fontSize: 12, color: '#b8873a', fontStyle: 'italic' }}>
+                                   💬 {motivo.observacao_geral}
+                                 </div>
+                               )}
+                             </div>
+                           ) : (
+                             <div style={{ fontSize: 12, color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.02)', padding: '10px 14px', borderRadius: 10, marginTop: 6, border: '1px solid var(--border)', lineHeight: 1.5 }}>
+                               "{typeof motivo === 'string' ? motivo : JSON.stringify(motivo)}"
+                             </div>
+                           )}
+                         </div>
+                       </div>
+                     );
+                   })
                  ) : !projeto.data_aprovacao && (
                     <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>Nenhuma atividade registrada no portal do cliente ainda.</div>
-                 )}
+                  )}
 
                  {/* Fallback para motivo_revisao legado (se não houver histórico) */}
                  {projeto.motivo_revisao && (!projeto.historico_revisoes || projeto.historico_revisoes.length === 0) && (

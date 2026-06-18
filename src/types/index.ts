@@ -21,3 +21,32 @@ export type TarefaComProjetoETerceiro = TarefaTerceirizado & {
 export type NotificacaoComProjeto = Notificacao & {
   projetos: Pick<Projeto, 'id'> | null;
 };
+
+// --- Tipos do Sistema de Revisão Estruturado ---
+
+export type CategoriaRevisao =
+  | 'Voz'
+  | 'Bateria'
+  | 'Instrumentos'
+  | 'Mix Geral'
+  | 'Masterização'
+  | 'Letra / Arranjo'
+  | 'Outro';
+
+export type PrioridadeRevisao = 'Crítico' | 'Importante' | 'Sugestão';
+
+export interface PontoRevisao {
+  id: string;
+  categoria: CategoriaRevisao;
+  descricao: string;
+  prioridade: PrioridadeRevisao;
+  timestamp_min?: number | null;
+  timestamp_seg?: number | null;
+}
+
+export interface FeedbackRevisao {
+  versao: 'estruturado';
+  pontos: PontoRevisao[];
+  observacao_geral?: string;
+  resumo?: string; // gerado automaticamente para exibição rápida
+}

@@ -311,9 +311,30 @@ export async function aprovarProjeto(token: string) {
   return true;
 }
 
-export async function registrarSolicitacaoRevisao(projectId: string, motivo: string, currentHistory: Array<{ data: string; motivo: string; etapa: string }>) {
+export async function registrarSolicitacaoRevisao(
+  projectId: string,
+  feedback: import('@/types').FeedbackRevisao | string,
+  currentHistory: Array<{ data: string; motivo: any; etapa: string }>
+) {
   const agora = new Date().toISOString();
-  const novoItem = { data: agora, motivo, etapa: 'Solicitação de Alteração' };
+
+  // Gera um resumo de texto legível para exibição rápida
+  let resumoTexto: string;
+  let motivoParaSalvar: any;
+
+  if (typeof feedback === 'string') {
+    // Compatibilidade com o formato legado (string pura)
+    resumoTexto = feedback;
+    motivoParaSalvar = feedback;
+  } else {
+    // Novo formato estruturado
+    const cats = [...new Set(feedback.pontos.map((p) => p.categoria))];
+    const criticos = feedback.pontos.filter((p) => p.prioridade === 'Crítico').length;
+    resumoTexto = `${feedback.pontos.length} ponto(s) · ${cats.join(', ')}${criticos > 0 ? ` · ${criticos} crítico(s)` : ''}`;
+    motivoParaSalvar = { ...feedback, resumo: resumoTexto };
+  }
+
+  const novoItem = { data: agora, motivo: motivoParaSalvar, etapa: 'Solicitação de Alteração' };
 
   const { data: project, error: fetchError } = await supabaseServer
     .from('projetos')
@@ -336,7 +357,7 @@ export async function registrarSolicitacaoRevisao(projectId: string, motivo: str
     .from('projetos')
     .update({
       status_producao: 'Pós-Produção',
-      motivo_revisao: motivo,
+      motivo_revisao: typeof motivoParaSalvar === 'string' ? motivoParaSalvar : JSON.stringify(motivoParaSalvar),
       historico_revisoes: novoHistorico,
       contador_revisoes: nextCount,
       revisoes_disponiveis: nextDisponiveis,
@@ -350,6 +371,7 @@ export async function registrarSolicitacaoRevisao(projectId: string, motivo: str
   if (data?.[0]?.public_token) revalidatePath(`/p/${data[0].public_token}`);
   return data?.[0];
 }
+
 
 export async function ajustarRevisoesDisponiveis(projectId: string, novoValor: number) {
   await requireAuth();

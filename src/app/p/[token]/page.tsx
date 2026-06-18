@@ -4,12 +4,29 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useTransition, use } from 'react';
 import confetti from 'canvas-confetti';
-import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, History, Link as LinkIcon, Plus, Trash2, ExternalLink, CreditCard, Wallet } from 'lucide-react';
+import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, History, Link as LinkIcon, Plus, Trash2, ExternalLink, CreditCard, Wallet, Mic, Drum, Guitar, Sliders, Radio, Pen, MessageSquare, X } from 'lucide-react';
 import { handleSupabaseError, formatCurrency, formatDate } from '@/lib/utils';
 import { ETAPAS_PRODUCAO, getStatusTheme } from '@/constants/workflow';
 import { aprovarProjeto, registrarSolicitacaoRevisao } from '@/actions/databaseActions';
 import { getPublicProject, adicionarReferenciaProjeto, removerReferenciaProjeto } from '@/actions/publicActions'; // [SEC REFACTOR]
-import { ProjetoComCliente } from '@/types';
+import { ProjetoComCliente, PontoRevisao, FeedbackRevisao, CategoriaRevisao, PrioridadeRevisao } from '@/types';
+
+// --- Configuração das Categorias e Prioridades ---
+const CATEGORIAS: { label: CategoriaRevisao; emoji: string; cor: string }[] = [
+  { label: 'Voz', emoji: '🎤', cor: '#a855f7' },
+  { label: 'Bateria', emoji: '🥁', cor: '#f59e0b' },
+  { label: 'Instrumentos', emoji: '🎸', cor: '#3b82f6' },
+  { label: 'Mix Geral', emoji: '🌐', cor: '#10b981' },
+  { label: 'Masterização', emoji: '🔊', cor: '#ef4444' },
+  { label: 'Letra / Arranjo', emoji: '✍️', cor: '#ec4899' },
+  { label: 'Outro', emoji: '💬', cor: '#6b7280' },
+];
+
+const PRIORIDADES: { label: PrioridadeRevisao; emoji: string; cor: string; bg: string }[] = [
+  { label: 'Crítico', emoji: '🔴', cor: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
+  { label: 'Importante', emoji: '🟡', cor: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+  { label: 'Sugestão', emoji: '🟢', cor: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
+];
 
 const MAX_REVISOES = 3;
 
@@ -20,8 +37,16 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isPending, startTransition] = useTransition();
+  // Estado do novo modal de revisão estruturado
   const [showRevisionModal, setShowRevisionModal] = useState(false);
-  const [revisionFeedback, setRevisionFeedback] = useState('');
+  const [pontosRevisao, setPontosRevisao] = useState<PontoRevisao[]>([]);
+  const [observacaoGeral, setObservacaoGeral] = useState('');
+  // Estado do formulário de um ponto de revisão (antes de adicionar à lista)
+  const [pontoCategoria, setPontoCategoria] = useState<CategoriaRevisao>('Voz');
+  const [pontoDescricao, setPontoDescricao] = useState('');
+  const [pontoPrioridade, setPontoPrioridade] = useState<PrioridadeRevisao>('Importante');
+  const [pontoTsMin, setPontoTsMin] = useState<string>('');
+  const [pontoTsSeg, setPontoTsSeg] = useState<string>('');
   const [showHistory, setShowHistory] = useState(false);
   const [showRefModal, setShowRefModal] = useState(false);
   const [refTitle, setRefTitle] = useState('');
@@ -84,16 +109,45 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
     });
   };
 
+  const adicionarPonto = () => {
+    if (!pontoDescricao.trim()) return;
+    const novoPonto: PontoRevisao = {
+      id: crypto.randomUUID(),
+      categoria: pontoCategoria,
+      descricao: pontoDescricao.trim(),
+      prioridade: pontoPrioridade,
+      timestamp_min: pontoTsMin !== '' ? Number(pontoTsMin) : null,
+      timestamp_seg: pontoTsSeg !== '' ? Number(pontoTsSeg) : null,
+    };
+    setPontosRevisao(prev => [...prev, novoPonto]);
+    // Limpa o formulário do ponto (mantém categoria e prioridade)
+    setPontoDescricao('');
+    setPontoTsMin('');
+    setPontoTsSeg('');
+  };
+
+  const removerPonto = (id: string) => {
+    setPontosRevisao(prev => prev.filter(p => p.id !== id));
+  };
+
   const handleSolicitarRevisao = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token || !projeto || !revisionFeedback.trim()) return;
+    if (!token || !projeto || pontosRevisao.length === 0) return;
     
+    const feedback: FeedbackRevisao = {
+      versao: 'estruturado',
+      pontos: pontosRevisao,
+      observacao_geral: observacaoGeral.trim() || undefined,
+    };
+
     startTransition(async () => {
       try {
-        const updated = await registrarSolicitacaoRevisao(projeto.id, revisionFeedback, projeto.historico_revisoes || []);
+        const updated = await registrarSolicitacaoRevisao(projeto.id, feedback, projeto.historico_revisoes || []);
         setProjeto((prev: any) => prev ? ({ ...prev, ...updated } as ProjetoComCliente) : null);
         setShowRevisionModal(false);
-        setRevisionFeedback('');
+        setPontosRevisao([]);
+        setObservacaoGeral('');
+        setPontoDescricao('');
       } catch (err: any) {
         alert('Erro ao solicitar revisão: ' + handleSupabaseError(err));
       }
@@ -163,7 +217,7 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
   const usadas = Number(projeto.contador_revisoes ?? 0);
   const revisaoEsgotada = disponiveis <= 0;
   const ultimaRevisao = disponiveis === 1;
-  const historicoRevisoes: Array<{ data: string; motivo: string; etapa: string }> = projeto.historico_revisoes || [];
+  const historicoRevisoes: Array<{ data: string; motivo: any; etapa: string }> = projeto.historico_revisoes || [];
 
   return (
     <div style={{ padding: 'clamp(20px, 4vw, 40px) clamp(16px, 4vw, 20px)', maxWidth: 1000, margin: '0 auto' }} className="fade-up">
@@ -616,101 +670,271 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
 
               {showHistory && (
                 <div style={{ borderTop: '1px solid var(--border)', padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {historicoRevisoes.map((rev, i) => (
-                    <div key={i} style={{ 
-                      padding: '12px', borderRadius: 8, 
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.06)'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                          Revisão #{i + 1}
-                        </span>
-                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                          {new Date(rev.data).toLocaleString('pt-BR', { 
-                            day: '2-digit', month: '2-digit', year: '2-digit',
-                            hour: '2-digit', minute: '2-digit' 
-                          })}
-                        </span>
+                  {historicoRevisoes.map((rev, i) => {
+                    // Detectar se o motivo é um objeto estruturado
+                    const motivo = rev.motivo;
+                    const isEstruturado = motivo && typeof motivo === 'object' && motivo.versao === 'estruturado';
+                    
+                    return (
+                      <div key={i} style={{ padding: '14px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                          <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            Revisão #{i + 1}
+                          </span>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                            {new Date(rev.data).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+
+                        {isEstruturado ? (
+                          // Renderização do feedback estruturado
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {motivo.pontos?.map((ponto: any, pi: number) => {
+                              const cat = CATEGORIAS.find(c => c.label === ponto.categoria);
+                              const pri = PRIORIDADES.find(p => p.label === ponto.prioridade);
+                              const hasTs = ponto.timestamp_min != null || ponto.timestamp_seg != null;
+                              return (
+                                <div key={pi} style={{ display: 'flex', gap: 10, padding: '10px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.04)' }}>
+                                  <span style={{ fontSize: 16 }}>{cat?.emoji || '📌'}</span>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 5 }}>
+                                      <span style={{ fontSize: 10, fontWeight: 700, color: cat?.cor || '#fff', background: `${cat?.cor || '#fff'}18`, border: `1px solid ${cat?.cor || '#fff'}33`, padding: '1px 6px', borderRadius: 99 }}>{ponto.categoria}</span>
+                                      <span style={{ fontSize: 10, fontWeight: 700, color: pri?.cor, background: pri?.bg, padding: '1px 6px', borderRadius: 99 }}>{pri?.emoji} {ponto.prioridade}</span>
+                                      {hasTs && <span style={{ fontSize: 10, color: 'var(--text-muted)', background: 'rgba(255,255,255,0.04)', padding: '1px 6px', borderRadius: 99 }}>⏱ {String(ponto.timestamp_min ?? 0).padStart(2,'0')}:{String(ponto.timestamp_seg ?? 0).padStart(2,'0')}</span>}
+                                    </div>
+                                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>{ponto.descricao}</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {motivo.observacao_geral && (
+                              <div style={{ marginTop: 4, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.08)', fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                💬 {motivo.observacao_geral}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          // Feedback legado (texto puro)
+                          <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5, margin: 0 }}>
+                            "{typeof motivo === 'string' ? motivo : JSON.stringify(motivo)}"
+                          </p>
+                        )}
                       </div>
-                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5, margin: 0 }}>
-                        "{rev.motivo}"
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
           )}
+
         </div>
       </div>
 
-      {/* REVISION MODAL */}
+      {/* REVISION MODAL — ESTRUTURADO */}
       {showRevisionModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 2000, padding: 20
+          zIndex: 2000, padding: '16px'
         }}>
           <div className="glass" style={{ 
-            maxWidth: 500, width: '100%', padding: 32, borderRadius: 20,
-            animation: 'fadeUp 0.3s ease-out', margin: 'auto'
+            maxWidth: 600, width: '100%', borderRadius: 24,
+            animation: 'fadeUp 0.3s ease-out', margin: 'auto',
+            maxHeight: '92vh', overflowY: 'auto', display: 'flex', flexDirection: 'column'
           }}>
-            <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>Solicitar Alterações</h3>
-            
-            {/* Subtle warning when last revision */}
-            {ultimaRevisao && (
-              <div style={{ 
-                padding: '10px 14px', borderRadius: 8, 
-                background: 'rgba(245,158,11,0.07)', 
-                border: '1px solid rgba(245,158,11,0.18)', 
-                color: '#a37c3a', 
-                fontSize: 12, marginBottom: 16, display: 'flex', gap: 8, alignItems: 'flex-start'
-              }}>
-                <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-                <span>Esta é a sua última revisão incluída no projeto.</span>
+            {/* Header */}
+            <div style={{ padding: '24px 28px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <div>
+                <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>Solicitar Alterações</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                  Adicione cada ponto de ajuste separadamente para um feedback preciso.
+                </p>
               </div>
-            )}
+              <button onClick={() => setShowRevisionModal(false)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--text-muted)', borderRadius: 8, padding: 6, cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
 
-            <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 24 }}>
-              Descreva detalhadamente o que você gostaria de ajustar (ex: volume da voz, timbre do baixo, etc).
-            </p>
-            <form onSubmit={handleSolicitarRevisao}>
-              <textarea
-                required
-                value={revisionFeedback}
-                onChange={(e) => setRevisionFeedback(e.target.value)}
-                placeholder="Ex: Gostaria de aumentar um pouco o volume da voz no refrão..."
-                style={{
-                  width: '100%', height: 150, padding: 16, borderRadius: 12,
-                  background: 'var(--bg-base)', border: '1px solid var(--border)',
-                  color: '#fff', outline: 'none', fontSize: 14, resize: 'none',
-                  marginBottom: 20
-                }}
-              />
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button 
-                  type="button" 
-                  onClick={() => setShowRevisionModal(false)}
+            <div style={{ padding: '20px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+              {/* Alerta de última revisão */}
+              {ultimaRevisao && (
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.2)', color: '#b8873a', fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                  <span>Esta é a sua <strong>última revisão</strong> incluída no projeto.</span>
+                </div>
+              )}
+
+              {/* ---- FORMULÁRIO DE UM PONTO ---- */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 16, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent-light)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Novo Ponto de Ajuste</div>
+
+                {/* Categoria */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>CATEGORIA</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                    {CATEGORIAS.map(cat => (
+                      <button
+                        key={cat.label}
+                        type="button"
+                        onClick={() => setPontoCategoria(cat.label)}
+                        style={{
+                          padding: '5px 11px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: '0.15s',
+                          background: pontoCategoria === cat.label ? `${cat.cor}22` : 'rgba(255,255,255,0.03)',
+                          border: `1px solid ${pontoCategoria === cat.label ? cat.cor : 'rgba(255,255,255,0.08)'}`,
+                          color: pontoCategoria === cat.label ? cat.cor : 'var(--text-secondary)',
+                        }}
+                      >
+                        {cat.emoji} {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Time-stamp */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>MARCAÇÃO DE TEMPO (opcional)</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input
+                      type="number" min={0} max={59} placeholder="min"
+                      value={pontoTsMin}
+                      onChange={e => setPontoTsMin(e.target.value)}
+                      style={{ width: 70, padding: '8px 10px', borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', fontSize: 14, textAlign: 'center', outline: 'none' }}
+                    />
+                    <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>:</span>
+                    <input
+                      type="number" min={0} max={59} placeholder="seg"
+                      value={pontoTsSeg}
+                      onChange={e => setPontoTsSeg(e.target.value)}
+                      style={{ width: 70, padding: '8px 10px', borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', fontSize: 14, textAlign: 'center', outline: 'none' }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ex: 1min 23seg</span>
+                  </div>
+                </div>
+
+                {/* Descrição */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>DESCRIÇÃO DO AJUSTE</div>
+                  <textarea
+                    value={pontoDescricao}
+                    onChange={e => setPontoDescricao(e.target.value)}
+                    placeholder="Ex: O bumbo está cobrindo a nota do baixo na entrada do refrão..."
+                    rows={2}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', fontSize: 13, resize: 'none', outline: 'none' }}
+                  />
+                </div>
+
+                {/* Prioridade */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>PRIORIDADE</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {PRIORIDADES.map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => setPontoPrioridade(p.label)}
+                        style={{
+                          flex: 1, padding: '8px 10px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: '0.15s',
+                          background: pontoPrioridade === p.label ? p.bg : 'rgba(255,255,255,0.02)',
+                          border: `1px solid ${pontoPrioridade === p.label ? p.cor : 'rgba(255,255,255,0.08)'}`,
+                          color: pontoPrioridade === p.label ? p.cor : 'var(--text-muted)',
+                        }}
+                      >
+                        {p.emoji} {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Botão adicionar ponto */}
+                <button
+                  type="button"
+                  onClick={adicionarPonto}
+                  disabled={!pontoDescricao.trim()}
+                  style={{
+                    padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: pontoDescricao.trim() ? 'pointer' : 'not-allowed',
+                    background: pontoDescricao.trim() ? 'rgba(124,58,237,0.15)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${pontoDescricao.trim() ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                    color: pontoDescricao.trim() ? 'var(--accent-light)' : 'var(--text-muted)',
+                    display: 'flex', alignItems: 'center', gap: 8, transition: '0.2s'
+                  }}
+                >
+                  <Plus size={15} /> Adicionar à Lista
+                </button>
+              </div>
+
+              {/* ---- LISTA DE PONTOS ADICIONADOS ---- */}
+              {pontosRevisao.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+                    Pontos de Ajuste ({pontosRevisao.length})
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {pontosRevisao.map((ponto, idx) => {
+                      const cat = CATEGORIAS.find(c => c.label === ponto.categoria);
+                      const pri = PRIORIDADES.find(p => p.label === ponto.prioridade);
+                      const hasTs = ponto.timestamp_min != null || ponto.timestamp_seg != null;
+                      return (
+                        <div key={ponto.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '12px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12 }}>
+                          <div style={{ fontSize: 18, lineHeight: 1, marginTop: 1 }}>{cat?.emoji}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: cat?.cor, background: `${cat?.cor}18`, border: `1px solid ${cat?.cor}33`, padding: '1px 7px', borderRadius: 99 }}>{ponto.categoria}</span>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: pri?.cor, background: pri?.bg, padding: '1px 7px', borderRadius: 99 }}>{pri?.emoji} {ponto.prioridade}</span>
+                              {hasTs && <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'rgba(255,255,255,0.04)', padding: '1px 7px', borderRadius: 99 }}>⏱ {String(ponto.timestamp_min ?? 0).padStart(2,'0')}:{String(ponto.timestamp_seg ?? 0).padStart(2,'0')}</span>}
+                            </div>
+                            <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{ponto.descricao}</div>
+                          </div>
+                          <button type="button" onClick={() => removerPonto(ponto.id)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, flexShrink: 0 }}>
+                            <X size={14} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Observação Geral */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>OBSERVAÇÃO GERAL (opcional)</div>
+                <textarea
+                  value={observacaoGeral}
+                  onChange={e => setObservacaoGeral(e.target.value)}
+                  placeholder="Algum contexto geral sobre os ajustes? (ex: vibe geral, comparativo com referência...)"
+                  rows={2}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', fontSize: 13, resize: 'none', outline: 'none' }}
+                />
+              </div>
+
+              {/* Botões de ação */}
+              <form onSubmit={handleSolicitarRevisao} style={{ display: 'flex', gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowRevisionModal(false); setPontosRevisao([]); setPontoDescricao(''); setObservacaoGeral(''); }}
                   className="btn-secondary"
-                  style={{ flex: 1, padding: 12, borderRadius: 10 }}
+                  style={{ flex: 1, padding: '12px', borderRadius: 12 }}
                   disabled={isPending}
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   type="submit"
-                  disabled={isPending}
-                  style={{ 
-                    flex: 2, padding: 12, borderRadius: 10, background: 'var(--accent)', 
-                    color: '#fff', border: 'none', fontWeight: 700, cursor: isPending ? 'not-allowed' : 'pointer'
+                  disabled={isPending || pontosRevisao.length === 0}
+                  style={{
+                    flex: 2, padding: '12px', borderRadius: 12,
+                    background: pontosRevisao.length > 0 ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+                    color: pontosRevisao.length > 0 ? '#fff' : 'var(--text-muted)',
+                    border: 'none', fontWeight: 700, fontSize: 14,
+                    cursor: (isPending || pontosRevisao.length === 0) ? 'not-allowed' : 'pointer',
+                    transition: '0.2s'
                   }}
                 >
-                  {isPending ? 'Processando...' : 'Enviar Solicitação'}
+                  {isPending ? 'Enviando...' : `Enviar ${pontosRevisao.length > 0 ? `(${pontosRevisao.length} ponto${pontosRevisao.length > 1 ? 's' : ''})` : 'Feedback'}`}
                 </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
         </div>
       )}
