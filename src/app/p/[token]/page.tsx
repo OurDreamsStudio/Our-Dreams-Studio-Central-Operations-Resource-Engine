@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useTransition, use } from 'react';
-import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, History, Link as LinkIcon, Plus, Trash2, ExternalLink } from 'lucide-react';
+import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, History, Link as LinkIcon, Plus, Trash2, ExternalLink, CreditCard, Wallet } from 'lucide-react';
 import { handleSupabaseError, formatCurrency, formatDate } from '@/lib/utils';
 import { ETAPAS_PRODUCAO, getStatusTheme } from '@/constants/workflow';
 import { aprovarProjeto, registrarSolicitacaoRevisao } from '@/actions/databaseActions';
@@ -288,6 +288,65 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
               )}
             </div>
           </div>
+
+          {/* Resumo Financeiro */}
+          {projeto.valor_fechado && (
+            <div className="glass" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+                <Wallet size={16} style={{ color: 'var(--green)' }} />
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Resumo Financeiro
+                </h3>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Valor Total</span>
+                  <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
+                    {formatCurrency(projeto.valor_fechado)}
+                  </span>
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0' }} />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Sinal (50%)</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{formatCurrency(projeto.valor_fechado / 2)}</span>
+                    {projeto.sinal_pago ? (
+                      <span style={{ fontSize: 10, fontWeight: 800, background: 'rgba(34,197,94,0.15)', color: 'var(--green)', padding: '2px 8px', borderRadius: 99 }}>PAGO</span>
+                    ) : (
+                      <span style={{ fontSize: 10, fontWeight: 800, background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: 99 }}>PENDENTE</span>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Entrega (50%)</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{formatCurrency(projeto.valor_fechado / 2)}</span>
+                    {projeto.entrega_paga ? (
+                      <span style={{ fontSize: 10, fontWeight: 800, background: 'rgba(34,197,94,0.15)', color: 'var(--green)', padding: '2px 8px', borderRadius: 99 }}>PAGO</span>
+                    ) : (
+                      <span style={{ fontSize: 10, fontWeight: 800, background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: 99 }}>PENDENTE</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress Bar Financeira */}
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+                    <span>Progresso de Pagamento</span>
+                    <span>{projeto.sinal_pago && projeto.entrega_paga ? '100%' : projeto.sinal_pago ? '50%' : '0%'}</span>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,0.05)', overflow: 'hidden', display: 'flex' }}>
+                    <div style={{ height: '100%', width: '50%', background: projeto.sinal_pago ? 'var(--green)' : 'transparent', transition: 'background 0.3s' }} />
+                    <div style={{ height: '100%', width: '50%', background: projeto.entrega_paga ? 'var(--green)' : 'transparent', transition: 'background 0.3s' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Referências para o Projeto */}
           <div className="glass" style={{ padding: '24px' }}>
