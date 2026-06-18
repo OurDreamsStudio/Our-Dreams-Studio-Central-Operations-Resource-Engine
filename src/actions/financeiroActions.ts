@@ -207,6 +207,10 @@ export async function getOrcamentos() {
       orcamento_pdf_url, 
       orcamento_arquivado, 
       created_at, 
+      status_funil,
+      sinal_pago,
+      entrega_paga,
+      status_producao,
       clientes (id, nome_artistico, nome_pessoal)
     `)
     .not('orcamento_pdf_url', 'is', null)
@@ -231,7 +235,13 @@ export async function saveOrcamentoLink(
   isNewProject: boolean,
   link: string,
   projetoId?: string,
-  newProjectData?: { clienteId: string; nomeProjeto: string; tipoServico: string; valorFechado: number }
+  newProjectData?: { 
+    clienteId: string; 
+    nomeProjeto: string; 
+    tipoServico: string; 
+    valorFechado: number;
+    statusClassification?: string;
+  }
 ) {
   await requireAuth();
   const db = await createUserClient();
@@ -241,16 +251,68 @@ export async function saveOrcamentoLink(
 
   if (isNewProject) {
     if (!newProjectData) throw new Error('Dados do projeto são obrigatórios.');
+    
+    const statusClassification = newProjectData.statusClassification || 'Negociação';
+    
+    let finalStatusFunil = 'Negociação';
+    let finalSinalPago = false;
+    let finalEntregaPaga = false;
+    let finalStatusProducao = null;
+
+    if (statusClassification === 'Fechado') {
+      finalStatusFunil = 'Fechado';
+      finalSinalPago = false;
+      finalEntregaPaga = false;
+      finalStatusProducao = 'Definição de Escopo';
+    } else if (statusClassification === '50% Pago') {
+      finalStatusFunil = 'Fechado';
+      finalSinalPago = true;
+      finalEntregaPaga = false;
+      finalStatusProducao = 'Definição de Escopo';
+    } else if (statusClassification === 'Concluído') {
+      finalStatusFunil = 'Fechado';
+      finalSinalPago = true;
+      finalEntregaPaga = true;
+      finalStatusProducao = 'Entregue';
+    } else if (statusClassification === 'Perdido') {
+      finalStatusFunil = 'Perdido';
+      finalSinalPago = false;
+      finalEntregaPaga = false;
+      finalStatusProducao = 'Cancelado';
+    }
+
     const { data: newProj, error: createError } = await db.from('projetos').insert([{
       cliente_id: newProjectData.clienteId,
       nome: newProjectData.nomeProjeto || 'Novo Projeto',
       tipo_servico: newProjectData.tipoServico,
       valor_fechado: newProjectData.valorFechado,
-      status_funil: 'Negociação',
+      status_funil: finalStatusFunil,
+      sinal_pago: finalSinalPago,
+      entrega_paga: finalEntregaPaga,
+      status_producao: finalStatusProducao,
       orcamento_pdf_url: urlToSave,
       public_token: crypto.randomUUID(),
     }]).select('id').single();
+
     if (createError) throw new Error(createError.message);
+
+    // Sincronizar status do cliente
+    let clientStatusFunil = 'Orçamento Enviado';
+    if (finalStatusFunil === 'Fechado') {
+      clientStatusFunil = 'Concluído/Produção';
+    } else if (finalStatusFunil === 'Perdido') {
+      clientStatusFunil = 'Perdido';
+    }
+
+    const { error: clientUpdateError } = await db
+      .from('clientes')
+      .update({ status_funil: clientStatusFunil })
+      .eq('id', newProjectData.clienteId);
+
+    if (clientUpdateError) {
+      console.error('Erro ao sincronizar status do cliente:', clientUpdateError.message);
+    }
+
     revalidatePath('/admin/financeiro');
     return { success: true, projetoId: newProj.id };
   } else {
@@ -264,12 +326,89 @@ export async function saveOrcamentoLink(
   }
 }
 
-export async function updateOrcamentoLink(projetoId: string, link: string) {
+export async function updateOrcamentoLink(projetoId: string, link: string, statusClassification?: string) {
   await requireAuth();
   const db = await createUserClient();
+  
+  const urlToSave = link.trim() === '' ? null : link.trim();
+  const updateData: any = { orcamento_pdf_url: urlToSave };
+
+  if (statusClassification) {
+    const { data: project, error: fetchError } = await db
+      .from('projetos')
+      .select('status_producao, cliente_id')
+      .eq('id', projetoId)
+      .single();
+
+    if (fetchError) throw new Error('Erro ao buscar projeto para atualização: ' + fetchError.message);
+
+    let finalStatusFunil = 'Negociação';
+    let finalSinalPago = false;
+    let finalEntregaPaga = false;
+    let finalStatusProducao = project.status_producao;
+
+    if (statusClassification === 'Fechado') {
+      finalStatusFunil = 'Fechado';
+      finalSinalPago = false;
+      finalEntregaPaga = false;
+      if (!finalStatusProducao || finalStatusProducao === 'Cancelado' || finalStatusProducao === 'Entregue') {
+        finalStatusProducao = 'Definição de Escopo';
+      }
+    } else if (statusClassification === '50% Pago') {
+      finalStatusFunil = 'Fechado';
+      finalSinalPago = true;
+      finalEntregaPaga = false;
+      if (!finalStatusProducao || finalStatusProducao === 'Cancelado' || finalStatusProducao === 'Entregue') {
+        finalStatusProducao = 'Definição de Escopo';
+      }
+    } else if (statusClassification === 'Concluído') {
+      finalStatusFunil = 'Fechado';
+      finalSinalPago = true;
+      finalEntregaPaga = true;
+      finalStatusProducao = 'Entregue';
+    } else if (statusClassification === 'Perdido') {
+      finalStatusFunil = 'Perdido';
+      finalSinalPago = false;
+      finalEntregaPaga = false;
+      finalStatusProducao = 'Cancelado';
+    } else if (statusClassification === 'Negociação') {
+      finalStatusFunil = 'Negociação';
+      finalSinalPago = false;
+      finalEntregaPaga = false;
+      finalStatusProducao = null;
+    }
+
+    updateData.status_funil = finalStatusFunil;
+    updateData.sinal_pago = finalSinalPago;
+    updateData.entrega_paga = finalEntregaPaga;
+    updateData.status_producao = finalStatusProducao;
+
+    // Sincronizar status do cliente
+    if (project.cliente_id) {
+      let clientStatusFunil = 'Orçamento Enviado';
+      if (finalStatusFunil === 'Fechado') {
+        clientStatusFunil = 'Concluído/Produção';
+      } else if (finalStatusFunil === 'Perdido') {
+        clientStatusFunil = 'Perdido';
+      } else if (finalStatusFunil === 'Negociação') {
+        clientStatusFunil = 'Orçamento Enviado';
+      }
+
+      const { error: clientUpdateError } = await db
+        .from('clientes')
+        .update({ status_funil: clientStatusFunil })
+        .eq('id', project.cliente_id);
+
+      if (clientUpdateError) {
+        console.error('Erro ao sincronizar status do cliente:', clientUpdateError.message);
+      }
+    }
+  }
+
   const { error } = await db.from('projetos')
-    .update({ orcamento_pdf_url: link.trim() || null })
+    .update(updateData)
     .eq('id', projetoId);
+
   if (error) throw new Error(error.message);
   revalidatePath('/admin/financeiro');
   return true;

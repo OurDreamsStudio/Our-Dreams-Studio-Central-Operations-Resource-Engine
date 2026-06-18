@@ -54,6 +54,33 @@ import {
 } from '@/actions/financeiroActions';
 import { getClientes, getProjetos } from '@/actions/databaseActions';
 
+const getBudgetStatus = (o: any) => {
+  if (o.status_funil === 'Perdido') return 'Perdido';
+  if (o.status_funil === 'Fechado') {
+    if (o.entrega_paga || o.status_producao === 'Entregue') return 'Concluído';
+    if (o.sinal_pago) return '50% Pago';
+    return 'Fechado';
+  }
+  return 'Negociação';
+};
+
+const getBudgetStatusStyle = (status: string) => {
+  switch (status) {
+    case 'Negociação':
+      return { border: '1px solid rgba(245, 158, 11, 0.3)', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' };
+    case 'Fechado':
+      return { border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' };
+    case 'Perdido':
+      return { border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' };
+    case '50% Pago':
+      return { border: '1px solid rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' };
+    case 'Concluído':
+      return { border: '1px solid rgba(34, 197, 94, 0.4)', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', boxShadow: '0 0 10px rgba(34, 197, 94, 0.2)' };
+    default:
+      return { border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' };
+  }
+};
+
 export default function FinanceiroPage() {
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
@@ -78,11 +105,13 @@ export default function FinanceiroPage() {
   const [orcamentoNome, setOrcamentoNome] = useState('');
   const [orcamentoTipo, setOrcamentoTipo] = useState('');
   const [orcamentoValor, setOrcamentoValor] = useState('');
+  const [orcamentoClassification, setOrcamentoClassification] = useState('Negociação');
 
-  // Editar link
+  // Editar link e status
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingOrcamento, setEditingOrcamento] = useState<any>(null);
   const [editLink, setEditLink] = useState('');
+  const [editClassification, setEditClassification] = useState('Negociação');
 
   const fetchData = async () => {
     setLoading(true);
@@ -156,6 +185,7 @@ export default function FinanceiroPage() {
             nomeProjeto: orcamentoNome,
             tipoServico: orcamentoTipo,
             valorFechado: Number(orcamentoValor) || 0,
+            statusClassification: orcamentoClassification,
           });
         } else {
           await saveOrcamentoLink(false, orcamentoLink, orcamentoProjetoId);
@@ -167,6 +197,7 @@ export default function FinanceiroPage() {
         setOrcamentoNome('');
         setOrcamentoTipo('');
         setOrcamentoValor('');
+        setOrcamentoClassification('Negociação');
         fetchData();
       } catch (err: any) {
         alert(err.message);
@@ -182,6 +213,7 @@ export default function FinanceiroPage() {
   const handleOpenEditModal = (o: any) => {
     setEditingOrcamento(o);
     setEditLink(o.orcamento_pdf_url || '');
+    setEditClassification(getBudgetStatus(o));
     setShowEditModal(true);
   };
 
@@ -190,10 +222,11 @@ export default function FinanceiroPage() {
     if (!editingOrcamento) return;
     startTransition(async () => {
       try {
-        await updateOrcamentoLink(editingOrcamento.id, editLink);
+        await updateOrcamentoLink(editingOrcamento.id, editLink, editClassification);
         setShowEditModal(false);
         setEditingOrcamento(null);
         setEditLink('');
+        setEditClassification('Negociação');
         fetchData();
       } catch (err: any) {
         alert(err.message);
@@ -540,11 +573,24 @@ export default function FinanceiroPage() {
                      R$ {Number(o.valor_fechado || 0).toLocaleString('pt-BR')}
                    </td>
                    <td style={{ padding: '16px 24px', textAlign: 'center' }}>
-                     {o.orcamento_arquivado ? (
-                       <span style={{ padding: '4px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', fontSize: 11, fontWeight: 700 }}>ARQUIVADO</span>
-                     ) : (
-                       <span style={{ padding: '4px 8px', borderRadius: 4, background: 'rgba(124,58,237,0.1)', color: 'var(--accent)', fontSize: 11, fontWeight: 700 }}>ATIVO</span>
-                     )}
+                     <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+                       <span style={{ 
+                         padding: '4px 10px', 
+                         borderRadius: 6, 
+                         fontSize: 11, 
+                         fontWeight: 700,
+                         textTransform: 'uppercase',
+                         letterSpacing: '0.03em',
+                         ...getBudgetStatusStyle(getBudgetStatus(o))
+                       }}>
+                         {getBudgetStatus(o)}
+                       </span>
+                       {o.orcamento_arquivado && (
+                         <span style={{ padding: '2px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                           ARQUIVADO
+                         </span>
+                       )}
+                     </div>
                    </td>
                    <td style={{ padding: '16px 24px', textAlign: 'right', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                      <button onClick={() => handleOpenLink(o.orcamento_pdf_url)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid var(--border)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
@@ -722,6 +768,20 @@ export default function FinanceiroPage() {
                       <input type="number" step="0.01" className="field-input" placeholder="0.00" value={orcamentoValor} onChange={e => setOrcamentoValor(e.target.value)} />
                     </div>
                   </div>
+                  <div>
+                    <label className="field-label">Classificação Inicial</label>
+                    <select
+                      className="field-input"
+                      value={orcamentoClassification}
+                      onChange={e => setOrcamentoClassification(e.target.value)}
+                    >
+                      <option value="Negociação">Negociação</option>
+                      <option value="Fechado">Fechado</option>
+                      <option value="50% Pago">50% Pago</option>
+                      <option value="Concluído">Concluído</option>
+                      <option value="Perdido">Perdido</option>
+                    </select>
+                  </div>
                 </>
               )}
 
@@ -738,7 +798,7 @@ export default function FinanceiroPage() {
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: 460 }}>
             <div className="modal-header">
-              <h3>Editar Link do Orçamento</h3>
+              <h3>Editar Orçamento</h3>
               <button type="button" onClick={() => setShowEditModal(false)} className="close-btn"><X size={20} /></button>
             </div>
             <form onSubmit={handleSaveEditLink} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -749,7 +809,7 @@ export default function FinanceiroPage() {
                 </span>
               </div>
               <div>
-                <label className="field-label">Novo Link (Google Drive, Dropbox, etc.) *</label>
+                <label className="field-label">Link do Orçamento (Google Drive, Dropbox, etc.) *</label>
                 <input
                   type="url"
                   className="field-input"
@@ -760,8 +820,22 @@ export default function FinanceiroPage() {
                   autoFocus
                 />
               </div>
+              <div>
+                <label className="field-label">Classificação do Orçamento</label>
+                <select
+                  className="field-input"
+                  value={editClassification}
+                  onChange={e => setEditClassification(e.target.value)}
+                >
+                  <option value="Negociação">Negociação</option>
+                  <option value="Fechado">Fechado</option>
+                  <option value="50% Pago">50% Pago</option>
+                  <option value="Concluído">Concluído</option>
+                  <option value="Perdido">Perdido</option>
+                </select>
+              </div>
               <button type="submit" disabled={isPending} className="btn-primary" style={{ marginTop: 4 }}>
-                {isPending ? 'Salvando...' : 'Salvar Novo Link'}
+                {isPending ? 'Salvando...' : 'Salvar Alterações'}
               </button>
             </form>
           </div>
