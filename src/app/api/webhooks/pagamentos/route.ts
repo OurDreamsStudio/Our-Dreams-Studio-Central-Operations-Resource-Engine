@@ -1,7 +1,70 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
+function verifyMercadoPagoSignature(request: Request, rawBody: string): boolean {
+  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+  // If no secret is configured, skip verification (but log it)
+  if (!secret) {
+    console.warn('[WEBHOOK PAYMENT] MERCADOPAGO_WEBHOOK_SECRET não definida. Verificação de assinatura ignorada.');
+    return true;
+  }
+
+  const xSignature = request.headers.get('x-signature');
+  const xRequestId = request.headers.get('x-request-id');
+
+  if (!xSignature) {
+    console.warn('[WEBHOOK PAYMENT] Header x-signature ausente.');
+    return false;
+  }
+
+  // Parse ts and v1 from x-signature
+  const parts = Object.fromEntries(
+    xSignature.split(',').map(p => {
+      const eqIdx = p.indexOf('=');
+      if (eqIdx === -1) return [p.trim(), ''];
+      return [p.substring(0, eqIdx).trim(), p.substring(eqIdx + 1).trim()];
+    })
+  );
+  const ts = parts['ts'];
+  const v1 = parts['v1'];
+
+  if (!ts || !v1) {
+    console.warn('[WEBHOOK PAYMENT] Timestamp (ts) ou hash (v1) ausentes no x-signature.');
+    return false;
+  }
+
+  // Extract data.id (which represents the resource ID, e.g. payment ID)
+  // 1. Try from URL search params
+  const url = new URL(request.url);
+  let dataId = url.searchParams.get('data.id');
+
+  // 2. Try from JSON body
+  if (!dataId) {
+    try {
+      const parsed = JSON.parse(rawBody);
+      // It can be under data.id or data.data.id or id
+      dataId = parsed.data?.id || parsed.id;
+    } catch (e) {
+      // Ignore parse errors, body might not be JSON
+    }
+  }
+
+  const formattedDataId = dataId ? String(dataId).toLowerCase() : '';
+
+  const manifest = `id:${formattedDataId};request-id:${xRequestId || ''};ts:${ts};`;
+  const hmac = crypto.createHmac('sha256', secret).update(manifest).digest('hex');
+
+  // Use timing-safe comparison to prevent timing attacks
+  try {
+    return crypto.timingSafeEqual(Buffer.from(hmac, 'utf-8'), Buffer.from(v1, 'utf-8'));
+  } catch (err) {
+    // If lengths are different, timingSafeEqual throws an error
+    return false;
+  }
+}
 
 export async function POST(request: Request) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -14,10 +77,18 @@ export async function POST(request: Request) {
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   try {
-    const data = await request.json();
+    const rawBody = await request.text();
+
+    // Validate Mercado Pago signature
+    if (!verifyMercadoPagoSignature(request, rawBody)) {
+      console.warn('[WEBHOOK PAYMENT] Assinatura inválida — requisição rejeitada.');
+      return NextResponse.json({ error: 'Assinatura inválida.' }, { status: 401 });
+    }
+
+    const data = JSON.parse(rawBody);
     
-    // Log the payload to help debugging later
-    console.log('[WEBHOOK PAYMENT] Payload recebido:', JSON.stringify(data));
+    // Log the payload (sem dados sensíveis)
+    console.log('[WEBHOOK PAYMENT] Payload tipo:', data.type, '| id:', data.data?.id);
 
     let externalReference = null;
     let isPaymentConfirmed = false;
