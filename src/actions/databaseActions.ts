@@ -40,6 +40,8 @@ const ProjetoSaveSchema = z.object({
   servicos_fechados: z.union([z.string(), z.array(z.string())]).optional().nullable(),
   valores_servicos: z.record(z.string(), z.coerce.number()).optional().nullable(),
   cupom_usado: emptyStringToNull,
+  sinal_pago: z.boolean().optional().default(false),
+  entrega_paga: z.boolean().optional().default(false),
 }).strip();
 
 const CustoFixoSchema = z.object({
