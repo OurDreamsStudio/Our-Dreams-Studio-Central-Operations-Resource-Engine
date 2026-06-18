@@ -53,7 +53,7 @@ export async function savePropostaDinamica(id: string | null, data: {
   } else {
     const insertData = { 
       ...data, 
-      status_funil: 'Negociação',
+      status_funil: 'Orçamento Enviado',
       sinal_pago: false,
       entrega_paga: false,
       status_producao: null, // Ainda não iniciou produção

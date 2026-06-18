@@ -254,7 +254,7 @@ export async function saveOrcamentoLink(
     
     const statusClassification = newProjectData.statusClassification || 'Negociação';
     
-    let finalStatusFunil = 'Negociação';
+    let finalStatusFunil = 'Orçamento Enviado';
     let finalSinalPago = false;
     let finalEntregaPaga = false;
     let finalStatusProducao = null;
@@ -342,7 +342,7 @@ export async function updateOrcamentoLink(projetoId: string, link: string, statu
 
     if (fetchError) throw new Error('Erro ao buscar projeto para atualização: ' + fetchError.message);
 
-    let finalStatusFunil = 'Negociação';
+    let finalStatusFunil = 'Orçamento Enviado';
     let finalSinalPago = false;
     let finalEntregaPaga = false;
     let finalStatusProducao = project.status_producao;
@@ -372,7 +372,7 @@ export async function updateOrcamentoLink(projetoId: string, link: string, statu
       finalEntregaPaga = false;
       finalStatusProducao = 'Cancelado';
     } else if (statusClassification === 'Negociação') {
-      finalStatusFunil = 'Negociação';
+      finalStatusFunil = 'Orçamento Enviado';
       finalSinalPago = false;
       finalEntregaPaga = false;
       finalStatusProducao = null;

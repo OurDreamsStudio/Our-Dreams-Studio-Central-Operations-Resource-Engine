@@ -85,7 +85,7 @@ export async function gerarCheckout(token: string) {
   const projeto = await getPublicProposal(token);
   if (!projeto) throw new Error('Projeto não encontrado');
   if (projeto.sinal_pago) throw new Error('Sinal já foi pago');
-  
+
   const valorTotal = projeto.valor_fechado || 0;
   const valorSinal = valorTotal / 2;
 
@@ -97,7 +97,10 @@ export async function gerarCheckout(token: string) {
   const client = new MercadoPagoConfig({ accessToken });
   const preference = new Preference(client);
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  if (baseUrl.includes('localhost')) {
+    baseUrl = 'https://www.mercadopago.com.br'; // Fallback for MP validation
+  }
 
   const response = await preference.create({
     body: {
