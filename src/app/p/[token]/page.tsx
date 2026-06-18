@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useTransition, use } from 'react';
+import confetti from 'canvas-confetti';
 import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, History, Link as LinkIcon, Plus, Trash2, ExternalLink, CreditCard, Wallet } from 'lucide-react';
 import { handleSupabaseError, formatCurrency, formatDate } from '@/lib/utils';
 import { ETAPAS_PRODUCAO, getStatusTheme } from '@/constants/workflow';
@@ -52,6 +53,31 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
         await aprovarProjeto(token as string);
         const data = await getPublicProject(token);
         setProjeto((prev: any) => prev ? ({ ...prev, ...data } as ProjetoComCliente) : null);
+        
+        // Efeito UAU (Confetti)
+        const duration = 3000;
+        const end = Date.now() + duration;
+
+        (function frame() {
+          confetti({
+            particleCount: 5,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            colors: ['#7C3AED', '#A78BFA', '#34D399']
+          });
+          confetti({
+            particleCount: 5,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            colors: ['#7C3AED', '#A78BFA', '#34D399']
+          });
+
+          if (Date.now() < end) {
+            requestAnimationFrame(frame);
+          }
+        }());
       } catch (err: any) {
         alert('Erro ao aprovar projeto: ' + handleSupabaseError(err));
       }
