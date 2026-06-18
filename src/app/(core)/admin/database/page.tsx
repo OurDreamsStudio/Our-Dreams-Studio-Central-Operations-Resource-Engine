@@ -141,6 +141,10 @@ export default function AdminDatabasePage() {
     const formData = new FormData(e.currentTarget as HTMLFormElement);
     const projectData: Partial<Projeto> = Object.fromEntries(formData.entries());
     
+    // Explicit boolean conversion for checkboxes
+    projectData.sinal_pago = formData.get('sinal_pago') === 'on';
+    projectData.entrega_paga = formData.get('entrega_paga') === 'on';
+    
     // Pre-calculate total and values with NaN safety
     const valorTotal = Object.values(modalPrecos).reduce((acc, v) => acc + (Number(v) || 0), 0);
     projectData.valor_fechado = valorTotal;
