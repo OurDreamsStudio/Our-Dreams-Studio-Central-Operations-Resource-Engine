@@ -376,17 +376,18 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
 
           {/* Referências para o Projeto */}
           <div className="glass" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Referências para o Projeto
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, gap: 12 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', lineHeight: 1.3 }}>
+                Referências
               </h3>
               <button
                 onClick={() => setShowRefModal(true)}
                 style={{
                   background: 'rgba(124,58,237,0.1)', color: 'var(--accent-light)',
-                  border: '1px solid rgba(124,58,237,0.2)', padding: '6px 12px',
-                  borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 6, transition: '0.2s'
+                  border: '1px solid rgba(124,58,237,0.2)', padding: '8px 14px',
+                  borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 6, transition: '0.2s',
+                  whiteSpace: 'nowrap', flexShrink: 0
                 }}
               >
                 <Plus size={14} /> Adicionar Link
@@ -394,9 +395,23 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
             </div>
 
             {(!projeto.referencias || projeto.referencias.length === 0) ? (
-              <div style={{ textAlign: 'center', padding: '20px 0', border: '1px dashed var(--border)', borderRadius: 8 }}>
-                <LinkIcon size={24} style={{ color: 'var(--border)', marginBottom: 8 }} />
-                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Nenhum link adicionado ainda.</p>
+              <div style={{ 
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                padding: '32px 20px', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 12,
+                background: 'rgba(0,0,0,0.15)'
+              }}>
+                <div style={{ 
+                  width: 48, height: 48, borderRadius: '50%', background: 'rgba(255,255,255,0.03)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12
+                }}>
+                  <LinkIcon size={20} style={{ color: 'var(--text-muted)' }} />
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500, textAlign: 'center' }}>
+                  Nenhum link adicionado ainda.
+                </p>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 4 }}>
+                  Adicione referências do YouTube, Spotify ou Drive.
+                </p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
