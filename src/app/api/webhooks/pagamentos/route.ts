@@ -16,21 +16,47 @@ export async function POST(request: Request) {
   try {
     const data = await request.json();
     
-    // Suporte genérico para mock/asaas/stripe
-    // Vamos assumir que a referência externa traz o ID do projeto ou token
-    // Exemplo: externalReference: 'mock-uuid-do-projeto' ou checkout.session.completed (stripe)
-    const externalReference = data.externalReference || data.data?.externalReference || data.data?.object?.client_reference_id;
-    const isPaymentConfirmed = data.event === 'PAYMENT_RECEIVED' || data.event === 'PAYMENT_CONFIRMED' || data.type === 'checkout.session.completed';
+    // Log the payload to help debugging later
+    console.log('[WEBHOOK PAYMENT] Payload recebido:', JSON.stringify(data));
+
+    let externalReference = null;
+    let isPaymentConfirmed = false;
+
+    // 1. MERCADO PAGO WEBHOOK (IPN or Webhook)
+    if (data.type === 'payment' || (data.topic === 'payment')) {
+      const paymentId = data.data?.id || data.resource?.split('/').pop();
+      if (paymentId) {
+        // Fetch the actual payment from Mercado Pago to check status and get external_reference
+        const mpToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+        if (mpToken) {
+          const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+            headers: { Authorization: `Bearer ${mpToken}` }
+          });
+          if (mpResponse.ok) {
+            const paymentData = await mpResponse.json();
+            if (paymentData.status === 'approved') {
+              isPaymentConfirmed = true;
+              externalReference = paymentData.external_reference;
+            }
+          }
+        }
+      }
+    } 
+    // 2. ASAAS / STRIPE (Fallback Genérico mantido)
+    else {
+      externalReference = data.externalReference || data.data?.externalReference || data.data?.object?.client_reference_id;
+      isPaymentConfirmed = data.event === 'PAYMENT_RECEIVED' || data.event === 'PAYMENT_CONFIRMED' || data.type === 'checkout.session.completed';
+    }
+
+    if (!isPaymentConfirmed) {
+      return NextResponse.json({ message: 'Evento ignorado (não é confirmação de pagamento aprovado).' }, { status: 200 });
+    }
 
     if (!externalReference) {
       return NextResponse.json({ error: 'Nenhuma referência de projeto encontrada no payload.' }, { status: 400 });
     }
 
-    if (!isPaymentConfirmed) {
-      return NextResponse.json({ message: 'Evento ignorado (não é confirmação de pagamento).' }, { status: 200 });
-    }
-
-    // Limpar o prefixo 'mock-' se existir
+    // Limpar o prefixo 'mock-' se existir (para testes antigos)
     const projetoId = externalReference.replace('mock-', '');
 
     const { data: project, error: fetchError } = await supabase
