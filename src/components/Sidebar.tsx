@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Kanban, Users, Briefcase, Database, UserCheck, DollarSign, Calendar, Inbox } from 'lucide-react';
+import { LayoutDashboard, Kanban, Users, Briefcase, Database, UserCheck, DollarSign, Calendar, Inbox, FileText } from 'lucide-react';
 import { getCountPendingApprovals } from '@/actions/terceirizadosActions';
 import { getLeads } from '@/actions/leadsActions';
 import { Projeto, Cliente, Terceirizado, TarefaTerceirizado, Notificacao } from '@/types';
@@ -48,6 +48,7 @@ export default function Sidebar() {
       badge: leadsCount > 0 ? leadsCount : null
     },
     { href: '/admin/financeiro', label: 'Financeiro', icon: <DollarSign size={18} /> },
+    { href: '/admin/propostas', label: 'Propostas Web', icon: <FileText size={18} /> },
     { href: '/admin/database', label: 'Gestão/Admin', icon: <Database size={18} /> },
   ];
 
