@@ -41,18 +41,22 @@ export async function savePropostaDinamica(id: string | null, data: {
   await requireAuth();
   const db = await createUserClient();
 
+  const servicosFechados = Object.keys(data.valores_servicos).join(', ');
+
   if (id) {
     const { error } = await db.from('projetos').update({
       cliente_id: data.cliente_id,
       nome: data.nome,
       tipo_servico: data.tipo_servico,
       valores_servicos: data.valores_servicos,
+      servicos_fechados: servicosFechados,
       valor_fechado: data.valor_fechado
     }).eq('id', id);
     if (error) throw new Error(error.message);
   } else {
     const insertData = { 
       ...data, 
+      servicos_fechados: servicosFechados,
       status_funil: 'Orçamento Enviado',
       sinal_pago: false,
       entrega_paga: false,

@@ -5,6 +5,7 @@ import { FileText, Plus, Trash2, Edit, Copy, CheckCircle, ExternalLink, Loader2,
 import { getPropostasDinamicas, savePropostaDinamica, deletePropostaDinamica } from '@/actions/propostasActions';
 import { getClientes } from '@/actions/databaseActions';
 import { handleSupabaseError, formatCurrency } from '@/lib/utils';
+import { SERVICOS } from '@/constants/workflow';
 
 export default function CentralPropostasPage() {
   const [propostas, setPropostas] = useState<any[]>([]);
@@ -301,7 +302,17 @@ export default function CentralPropostasPage() {
                 </div>
                 <div>
                   <label className="field-label">Tipo de Serviço *</label>
-                  <input className="field-input" placeholder="Ex: Produção Completa" value={tipoServico} onChange={e => setTipoServico(e.target.value)} required />
+                  <select 
+                    className="field-input" 
+                    value={tipoServico} 
+                    onChange={e => setTipoServico(e.target.value)} 
+                    required
+                  >
+                    <option value="">Selecione o serviço...</option>
+                    {SERVICOS.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -316,14 +327,18 @@ export default function CentralPropostasPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {servicos.map((s) => (
                     <div key={s.id} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      <input 
+                      <select 
                         className="field-input" 
-                        placeholder="Nome do serviço (ex: Mixagem)" 
                         style={{ flex: 2 }}
                         value={s.nome}
                         onChange={e => updateServico(s.id, 'nome', e.target.value)}
                         required
-                      />
+                      >
+                        <option value="">Selecione o serviço...</option>
+                        {SERVICOS.map(item => (
+                          <option key={item} value={item}>{item}</option>
+                        ))}
+                      </select>
                       <div style={{ position: 'relative', flex: 1 }}>
                         <span style={{ position: 'absolute', left: 12, top: 10, color: 'var(--text-muted)', fontSize: 13 }}>R$</span>
                         <input 
