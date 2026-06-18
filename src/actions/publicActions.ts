@@ -11,6 +11,7 @@ export async function getPublicProject(token: string) {
       status_producao,
       prazo_entrega,
       servicos_fechados,
+      referencias,
       link_arquivos,
       data_aprovacao,
       motivo_revisao,
@@ -124,4 +125,47 @@ export async function gerarCheckout(token: string) {
   });
 
   return response.init_point!;
+}
+
+export async function adicionarReferenciaProjeto(token: string, novaReferencia: any) {
+  // Pega as referências atuais
+  const { data: projeto, error: fetchError } = await supabaseServer
+    .from('projetos')
+    .select('id, referencias')
+    .eq('public_token', token)
+    .single();
+
+  if (fetchError || !projeto) throw new Error('Projeto não encontrado');
+
+  const referenciasAtuais = Array.isArray(projeto.referencias) ? projeto.referencias : [];
+  const referenciasAtualizadas = [...referenciasAtuais, novaReferencia];
+
+  const { error: updateError } = await supabaseServer
+    .from('projetos')
+    .update({ referencias: referenciasAtualizadas })
+    .eq('id', projeto.id);
+
+  if (updateError) throw new Error(updateError.message);
+  return referenciasAtualizadas;
+}
+
+export async function removerReferenciaProjeto(token: string, idReferencia: string) {
+  const { data: projeto, error: fetchError } = await supabaseServer
+    .from('projetos')
+    .select('id, referencias')
+    .eq('public_token', token)
+    .single();
+
+  if (fetchError || !projeto) throw new Error('Projeto não encontrado');
+
+  const referenciasAtuais = Array.isArray(projeto.referencias) ? projeto.referencias : [];
+  const referenciasAtualizadas = referenciasAtuais.filter((ref: any) => ref.id !== idReferencia);
+
+  const { error: updateError } = await supabaseServer
+    .from('projetos')
+    .update({ referencias: referenciasAtualizadas })
+    .eq('id', projeto.id);
+
+  if (updateError) throw new Error(updateError.message);
+  return referenciasAtualizadas;
 }

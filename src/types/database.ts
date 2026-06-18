@@ -213,6 +213,7 @@ export type Database = {
           orcamento_pdf_url: string | null
           prazo_entrega: string | null
           public_token: string | null
+          referencias: Json | null
           servicos_fechados: string | null
           sinal_pago: boolean | null
           status_funil: string
@@ -241,6 +242,7 @@ export type Database = {
           orcamento_pdf_url?: string | null
           prazo_entrega?: string | null
           public_token?: string | null
+          referencias?: Json | null
           servicos_fechados?: string | null
           sinal_pago?: boolean | null
           status_funil?: string
@@ -269,6 +271,7 @@ export type Database = {
           orcamento_pdf_url?: string | null
           prazo_entrega?: string | null
           public_token?: string | null
+          referencias?: Json | null
           servicos_fechados?: string | null
           sinal_pago?: boolean | null
           status_funil?: string

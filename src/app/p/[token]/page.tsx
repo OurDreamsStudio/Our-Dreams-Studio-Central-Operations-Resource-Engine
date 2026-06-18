@@ -3,11 +3,11 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useTransition, use } from 'react';
-import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, History } from 'lucide-react';
+import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, History, Link as LinkIcon, Plus, Trash2, ExternalLink } from 'lucide-react';
 import { handleSupabaseError, formatCurrency, formatDate } from '@/lib/utils';
 import { ETAPAS_PRODUCAO, getStatusTheme } from '@/constants/workflow';
 import { aprovarProjeto, registrarSolicitacaoRevisao } from '@/actions/databaseActions';
-import { getPublicProject } from '@/actions/publicActions'; // [SEC REFACTOR]
+import { getPublicProject, adicionarReferenciaProjeto, removerReferenciaProjeto } from '@/actions/publicActions'; // [SEC REFACTOR]
 import { ProjetoComCliente } from '@/types';
 
 const MAX_REVISOES = 3;
@@ -22,6 +22,10 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [revisionFeedback, setRevisionFeedback] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [showRefModal, setShowRefModal] = useState(false);
+  const [refTitle, setRefTitle] = useState('');
+  const [refUrl, setRefUrl] = useState('');
+  const [isSubmittingRef, setIsSubmittingRef] = useState(false);
 
   useEffect(() => {
     async function fetchProject() {
@@ -68,6 +72,34 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
         alert('Erro ao solicitar revisão: ' + handleSupabaseError(err));
       }
     });
+  };
+
+  const handleAddReference = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !refTitle || !refUrl) return;
+    setIsSubmittingRef(true);
+    try {
+      const novaRef = { id: crypto.randomUUID(), titulo: refTitle, url: refUrl, data_adicionado: new Date().toISOString() };
+      const atualizadas = await adicionarReferenciaProjeto(token as string, novaRef);
+      setProjeto((prev: any) => prev ? { ...prev, referencias: atualizadas } : null);
+      setShowRefModal(false);
+      setRefTitle('');
+      setRefUrl('');
+    } catch (err: any) {
+      alert('Erro ao adicionar referência: ' + handleSupabaseError(err));
+    } finally {
+      setIsSubmittingRef(false);
+    }
+  };
+
+  const handleRemoveReference = async (idRef: string) => {
+    if (!confirm('Tem certeza que deseja remover esta referência?')) return;
+    try {
+      const atualizadas = await removerReferenciaProjeto(token as string, idRef);
+      setProjeto((prev: any) => prev ? { ...prev, referencias: atualizadas } : null);
+    } catch (err: any) {
+      alert('Erro ao remover referência: ' + handleSupabaseError(err));
+    }
   };
 
   if (loading) {
@@ -255,6 +287,64 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Referências para o Projeto */}
+          <div className="glass" style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Referências para o Projeto
+              </h3>
+              <button
+                onClick={() => setShowRefModal(true)}
+                style={{
+                  background: 'rgba(124,58,237,0.1)', color: 'var(--accent-light)',
+                  border: '1px solid rgba(124,58,237,0.2)', padding: '6px 12px',
+                  borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 6, transition: '0.2s'
+                }}
+              >
+                <Plus size={14} /> Adicionar Link
+              </button>
+            </div>
+
+            {(!projeto.referencias || projeto.referencias.length === 0) ? (
+              <div style={{ textAlign: 'center', padding: '20px 0', border: '1px dashed var(--border)', borderRadius: 8 }}>
+                <LinkIcon size={24} style={{ color: 'var(--border)', marginBottom: 8 }} />
+                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Nenhum link adicionado ainda.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {projeto.referencias.map((ref: any) => (
+                  <div key={ref.id} style={{ 
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '12px', borderRadius: 8, background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid var(--border)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden' }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 6, background: 'rgba(124,58,237,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <LinkIcon size={14} className="text-accent" />
+                      </div>
+                      <div style={{ overflow: 'hidden' }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ref.titulo}
+                        </div>
+                        <a href={ref.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          Acessar Link <ExternalLink size={10} />
+                        </a>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleRemoveReference(ref.id)}
+                      style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: 4, opacity: 0.6, transition: '0.2s' }}
+                      title="Remover referência"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Asset Vault Placeholder */}
@@ -518,6 +608,71 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
                   }}
                 >
                   {isPending ? 'Processando...' : 'Enviar Solicitação'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* REFERENCE MODAL */}
+      {showRefModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 2000, padding: 20
+        }}>
+          <div className="glass" style={{ 
+            maxWidth: 400, width: '100%', padding: 32, borderRadius: 20,
+            animation: 'fadeUp 0.3s ease-out', margin: 'auto'
+          }}>
+            <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>Adicionar Referência</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 24 }}>
+              Cole o link do YouTube, Google Drive, Spotify ou de outro lugar.
+            </p>
+            <form onSubmit={handleAddReference}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8 }}>TÍTULO DA REFERÊNCIA</label>
+                <input
+                  required
+                  type="text"
+                  value={refTitle}
+                  onChange={(e) => setRefTitle(e.target.value)}
+                  placeholder="Ex: Referência para a bateria"
+                  style={{ width: '100%', padding: 12, borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', outline: 'none' }}
+                />
+              </div>
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8 }}>URL DO LINK</label>
+                <input
+                  required
+                  type="url"
+                  value={refUrl}
+                  onChange={(e) => setRefUrl(e.target.value)}
+                  placeholder="https://..."
+                  style={{ width: '100%', padding: 12, borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', outline: 'none' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowRefModal(false)}
+                  className="btn-secondary"
+                  style={{ flex: 1, padding: 12, borderRadius: 10 }}
+                  disabled={isSubmittingRef}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmittingRef}
+                  style={{ 
+                    flex: 2, padding: 12, borderRadius: 10, background: 'var(--accent)', 
+                    color: '#fff', border: 'none', fontWeight: 700, cursor: isSubmittingRef ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {isSubmittingRef ? 'Salvando...' : 'Salvar Link'}
                 </button>
               </div>
             </form>
