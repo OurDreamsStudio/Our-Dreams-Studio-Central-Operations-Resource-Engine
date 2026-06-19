@@ -13,6 +13,7 @@ import { useGrabScroll } from '@/hooks/useGrabScroll';
 import { ETAPAS_PRODUCAO, ProducaoStatus, getStatusTheme } from '@/constants/workflow';
 import { Projeto, Cliente, Terceirizado, TarefaTerceirizado, Notificacao } from '@/types';
 import { getProjetosProducao, updateProjetoChecklist, updateProjetoStatusProducao, updateProjetoLinkArquivos, confirmarEntregaProjeto } from '@/actions/databaseActions'; // [SEC REFACTOR]
+import { supabase } from '@/lib/supabase';
 
 const COLUMNS: { id: typeof ETAPAS_PRODUCAO[number]; label: string }[] = [
   { id: 'Definição de Escopo', label: 'Def. Escopo' },
@@ -82,6 +83,41 @@ export default function ProducaoPage() {
       }
     }
     fetchData();
+
+    // Inscreve no canal do Supabase Realtime para a tabela 'projetos'
+    const channel = supabase
+      .channel('realtime-producao')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'projetos' },
+        (payload) => {
+          console.log('[Realtime] Mudança detectada na tabela projetos:', payload);
+          if (payload.eventType === 'INSERT') {
+            fetchData(); // Refetch to get joined relations like clientes
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedProject = payload.new;
+            setProjetos((prev) => {
+              const exists = prev.some((p) => p.id === updatedProject.id);
+              if (exists) {
+                return prev.map((p) => (p.id === updatedProject.id ? { ...p, ...updatedProject } : p));
+              } else {
+                fetchData(); // Refetch if it's a new project entering the view
+                return prev;
+              }
+            });
+          } else if (payload.eventType === 'DELETE') {
+            const oldProject = payload.old;
+            setProjetos((prev) => prev.filter((p) => p.id !== oldProject.id));
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('[Realtime] Status da conexão:', status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleToggleChecklist = async (projectId: string, itemIndex: number, newValue: boolean) => {
