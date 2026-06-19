@@ -53,6 +53,7 @@ import {
   removeOrcamentoLink
 } from '@/actions/financeiroActions';
 import { getClientes, getProjetos } from '@/actions/databaseActions';
+import { supabase } from '@/lib/supabase';
 
 const getBudgetStatus = (o: any) => {
   if (o.status_funil === 'Perdido') return 'Perdido';
@@ -139,6 +140,17 @@ export default function FinanceiroPage() {
 
   useEffect(() => {
     fetchData();
+
+    // Realtime: refaz fetch em mudanças nas tabelas financeiras
+    const channel = supabase
+      .channel('realtime-financeiro')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projetos' }, () => { fetchData(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => { fetchData(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'custos_fixos' }, () => { fetchData(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orcamentos' }, () => { fetchData(); })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const handleSaveCusto = async (e: React.FormEvent) => {

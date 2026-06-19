@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, Save, Activity, CheckCircle, Disc, X, Share2, Check, FileText, RefreshCw, History, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 import { SERVICOS, MIX_MASTER_CHECKLIST, ETAPAS_VENDAS, ETAPAS_PRODUCAO, getStatusTheme } from '@/constants/workflow';
 import { getClientProfileData, updateClienteAnotacoes, createUpsellProject, ajustarRevisoesDisponiveis, desfazerEntregaProjeto } from '@/actions/databaseActions';
+import { supabase } from '@/lib/supabase';
 
 const FLUXO_LABEL: Record<string, { label: string; color: string }> = {
   AGUARDANDO_BASE:    { label: 'Aguardando Base',    color: '#8b8ba7' },
@@ -112,6 +113,19 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
       }
     }
     fetchData();
+
+    // Realtime: escuta mudanças no cliente e nos projetos vinculados
+    const channel = supabase
+      .channel(`realtime-cliente-${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes', filter: `id=eq.${id}` }, () => {
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projetos', filter: `cliente_id=eq.${id}` }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [id]);
 
   const handleSaveNotes = async () => {

@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from 'react';
 import { Inbox, Mail, MailOpen, Trash2, Phone, MessageSquare, Loader2, RefreshCw, UserPlus } from 'lucide-react';
 import { getLeads, marcarLeadComoLido, deleteLead } from '@/actions/leadsActions';
 import { handleSupabaseError, formatDate } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<any[]>([]);
@@ -22,7 +23,31 @@ export default function LeadsPage() {
     }
   };
 
-  useEffect(() => { fetchLeads(); }, []);
+  useEffect(() => {
+    fetchLeads();
+
+    // Realtime: escuta novos leads
+    const channel = supabase
+      .channel('realtime-leads')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newLead = payload.new;
+          setLeads((prev) => {
+            if (prev.some((l) => l.id === newLead.id)) return prev;
+            return [newLead, ...prev];
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          const updated = payload.new;
+          setLeads((prev) => prev.map((l) => (l.id === updated.id ? { ...l, ...updated } : l)));
+        } else if (payload.eventType === 'DELETE') {
+          const old = payload.old;
+          setLeads((prev) => prev.filter((l) => l.id !== old.id));
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const handleMarcarLido = (id: string) => {
     startTransition(async () => {

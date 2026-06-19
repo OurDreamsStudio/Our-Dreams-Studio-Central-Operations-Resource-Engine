@@ -24,6 +24,7 @@ import { getProjetoCompleto, desfazerEntregaProjeto } from '@/actions/databaseAc
 import { Projeto, Cliente, Terceirizado, TarefaTerceirizado, Notificacao } from '@/types';
 import { handleSupabaseError } from '@/lib/utils';
 import { ETAPAS_PRODUCAO } from '@/constants/workflow';
+import { supabase } from '@/lib/supabase';
 
 export default function WarRoomPage() {
   const { id } = useParams();
@@ -50,6 +51,16 @@ export default function WarRoomPage() {
 
   useEffect(() => {
     fetchData();
+
+    // Realtime: escuta mudanças no projeto específico
+    const channel = supabase
+      .channel(`realtime-dossie-${id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'projetos', filter: `id=eq.${id}` }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [id]);
 
   const handleDesfazerEntrega = async (e: React.FormEvent) => {

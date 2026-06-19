@@ -21,6 +21,7 @@ import {
   solicitarRevisaoEtapa,
   confirmarPagamento
 } from '@/actions/terceirizadosActions';
+import { supabase } from '@/lib/supabase';
 
 import { Terceirizado, TarefaTerceirizado, Projeto, ProjetoComCliente, TarefaComProjetoETerceiro } from '@/types';
 
@@ -69,6 +70,15 @@ export default function AdminTerceirizadosPage() {
 
   useEffect(() => {
     fetchData();
+
+    // Realtime: escuta mudanças em terceirizados e suas tarefas
+    const channel = supabase
+      .channel('realtime-terceirizados')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'terceirizados' }, () => { fetchData(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tarefas_terceirizados' }, () => { fetchData(); })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [fetchData]);
 
   // --- HANDLERS ---

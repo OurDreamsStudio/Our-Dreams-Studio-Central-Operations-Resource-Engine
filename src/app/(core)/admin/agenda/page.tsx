@@ -20,6 +20,7 @@ import {
 import Link from 'next/link';
 import { getProjetosAgenda, updateProjectDeadline } from '@/actions/databaseActions';
 import { getAlertedProjectIds } from '@/actions/alertaActions';
+import { supabase } from '@/lib/supabase';
 
 const MONTH_NAMES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -71,6 +72,19 @@ export default function AgendaPage() {
 
   useEffect(() => {
     fetchData();
+
+    // Realtime: escuta mudanças em projetos e tarefas de terceiros
+    const channel = supabase
+      .channel('realtime-agenda')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projetos' }, () => {
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tarefas_terceirizados' }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const getDaysInMonth = (year: number, month: number) => {

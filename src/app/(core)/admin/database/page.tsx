@@ -42,6 +42,7 @@ import {
   faxinaProjetosFantasmas
 } from '@/actions/databaseActions';
 import { triggerRescueFlow } from '@/actions/n8nActions';
+import { supabase } from '@/lib/supabase';
 
 type Tab = 'clientes' | 'projetos';
 
@@ -103,6 +104,15 @@ export default function AdminDatabasePage() {
     fetchData();
     // Pre-load terceirizados for the modal
     getTerceirizados().then(data => setTerceirizados(data || [])).catch(console.error);
+
+    // Realtime: escuta mudanças em clientes e projetos
+    const channel = supabase
+      .channel('realtime-database')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => { fetchData(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projetos' }, () => { fetchData(); })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [fetchData]);
 
   // --- CLIENT ACTIONS ---

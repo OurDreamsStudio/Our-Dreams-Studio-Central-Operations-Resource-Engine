@@ -6,6 +6,7 @@ import { getPropostasDinamicas, savePropostaDinamica, deletePropostaDinamica } f
 import { getClientes } from '@/actions/databaseActions';
 import { handleSupabaseError, formatCurrency } from '@/lib/utils';
 import { SERVICOS } from '@/constants/workflow';
+import { supabase } from '@/lib/supabase';
 
 export default function CentralPropostasPage() {
   const [propostas, setPropostas] = useState<any[]>([]);
@@ -44,6 +45,15 @@ export default function CentralPropostasPage() {
 
   useEffect(() => {
     fetchData();
+
+    // Realtime: escuta mudanças em propostas e clientes
+    const channel = supabase
+      .channel('realtime-propostas')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'propostas_dinamicas' }, () => { fetchData(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => { fetchData(); })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const resetForm = () => {
