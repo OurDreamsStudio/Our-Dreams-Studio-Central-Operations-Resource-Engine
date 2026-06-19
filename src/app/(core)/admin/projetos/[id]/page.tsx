@@ -14,19 +14,27 @@ import {
   FileCode,
   Link as LinkIcon,
   Loader2,
-  ChevronRight
+  ChevronRight,
+  RotateCcw,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { getProjetoCompleto } from '@/actions/databaseActions';
+import { getProjetoCompleto, desfazerEntregaProjeto } from '@/actions/databaseActions';
 import { Projeto, Cliente, Terceirizado, TarefaTerceirizado, Notificacao } from '@/types';
 import { handleSupabaseError } from '@/lib/utils';
+import { ETAPAS_PRODUCAO } from '@/constants/workflow';
 
 export default function WarRoomPage() {
   const { id } = useParams();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [projeto, setProjeto] = useState<any>(null);
+
+  // Desfazer Entrega state
+  const [showDesfazerModal, setShowDesfazerModal] = useState(false);
+  const [desfazerStage, setDesfazerStage] = useState<string>('Revisão');
+  const [submittingDesfazer, setSubmittingDesfazer] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -43,6 +51,21 @@ export default function WarRoomPage() {
   useEffect(() => {
     fetchData();
   }, [id]);
+
+  const handleDesfazerEntrega = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingDesfazer(true);
+    try {
+      await desfazerEntregaProjeto(id as string, desfazerStage);
+      setProjeto((prev: any) => ({ ...prev, status_producao: desfazerStage, data_aprovacao: null }));
+      setShowDesfazerModal(false);
+      router.refresh();
+    } catch (err: any) {
+      alert('Erro ao desfazer entrega: ' + handleSupabaseError(err));
+    } finally {
+      setSubmittingDesfazer(false);
+    }
+  };
 
   if (loading || !projeto) {
     return (
@@ -78,7 +101,20 @@ export default function WarRoomPage() {
                 <Users size={14} /> Cliente: <strong>{projeto.clientes?.nome_artistico || projeto.clientes?.nome_pessoal}</strong>
               </span>
               <span style={{ height: 4, width: 4, borderRadius: '50%', background: 'var(--border)' }} />
-              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Status: <strong>{projeto.status_producao || 'Pendente'}</strong></span>
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Status: <strong style={{ color: projeto.status_producao === 'Entregue' ? 'var(--green)' : 'inherit'}}>{projeto.status_producao || 'Pendente'}</strong></span>
+              
+              {projeto.status_producao === 'Entregue' && (
+                <button
+                  onClick={() => setShowDesfazerModal(true)}
+                  style={{
+                    background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+                    borderRadius: 8, padding: '4px 8px', cursor: 'pointer', color: '#f59e0b',
+                    display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700
+                  }}
+                >
+                  <RotateCcw size={12} /> Desfazer Entrega
+                </button>
+              )}
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -89,6 +125,76 @@ export default function WarRoomPage() {
           </div>
         </div>
       </div>
+
+      {/* Desfazer Entrega Modal */}
+      {showDesfazerModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 3000, padding: 20
+        }}>
+          <div style={{
+            background: 'var(--bg-surface)', border: '1px solid rgba(245,158,11,0.3)',
+            padding: 28, borderRadius: 16, width: '100%', maxWidth: 440,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(245,158,11,0.05)'
+          }} className="fade-up">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <RotateCcw size={18} style={{ color: '#f59e0b' }} />
+                </div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Desfazer Entrega</h2>
+              </div>
+              <button onClick={() => setShowDesfazerModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{
+              padding: '12px 16px', borderRadius: 10, background: 'rgba(245,158,11,0.08)',
+              border: '1px solid rgba(245,158,11,0.2)', marginBottom: 20, fontSize: 13, color: '#fcd34d', lineHeight: 1.5
+            }}>
+              ⚠️ Você está revertendo a entrega de <strong>{projeto.nome || 'Projeto'}</strong>. A data de aprovação será anulada.
+            </div>
+
+            <form onSubmit={handleDesfazerEntrega} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>
+                  Retornar para qual etapa do Kanban?
+                </label>
+                <select
+                  value={desfazerStage}
+                  onChange={e => setDesfazerStage(e.target.value)}
+                  style={{ width: '100%', padding: '12px 14px', borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', outline: 'none', fontSize: 14 }}
+                >
+                  {ETAPAS_PRODUCAO.filter(e => e !== 'Entregue').map(e => (
+                    <option key={e} value={e}>{e}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowDesfazerModal(false)}
+                  style={{ flex: 1, padding: '12px', borderRadius: 8, background: 'var(--bg-base)', color: 'var(--text-primary)', fontWeight: 600, border: '1px solid var(--border)', cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingDesfazer}
+                  style={{ flex: 1, padding: '12px', borderRadius: 8, background: 'rgba(245,158,11,0.9)', color: '#000', fontWeight: 700, border: 'none', cursor: submittingDesfazer ? 'not-allowed' : 'pointer', opacity: submittingDesfazer ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                >
+                  <RotateCcw size={14} />
+                  {submittingDesfazer ? 'Revertendo...' : 'Confirmar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* War Room Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 32 }}>
