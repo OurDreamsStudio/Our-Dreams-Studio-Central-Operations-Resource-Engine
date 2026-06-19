@@ -633,19 +633,31 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
           )}
 
           {/* Revision Info (Internal Alert Equivalent for Client) */}
-          {projeto.motivo_revisao && !projeto.data_aprovacao && (
-            <div style={{ 
-              padding: '16px', borderRadius: 12, background: 'rgba(245,158,11,0.05)', 
-              border: '1px solid rgba(245,158,11,0.2)', color: 'var(--text-primary)' 
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: '#f59e0b', fontSize: 12, fontWeight: 700 }}>
-                <AlertCircle size={16} /> REVISÃO SOLICITADA
+          {(() => {
+            if (!projeto.motivo_revisao || projeto.data_aprovacao) return null;
+            let displayMotivo = projeto.motivo_revisao;
+            try {
+              const parsed = JSON.parse(projeto.motivo_revisao);
+              if (parsed && parsed.versao === 'estruturado' && parsed.resumo) {
+                displayMotivo = parsed.resumo;
+              }
+            } catch (e) {
+              // Not JSON, keep original string
+            }
+            return (
+              <div style={{ 
+                padding: '16px', borderRadius: 12, background: 'rgba(245,158,11,0.05)', 
+                border: '1px solid rgba(245,158,11,0.2)', color: 'var(--text-primary)' 
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, color: '#f59e0b', fontSize: 12, fontWeight: 700 }}>
+                  <AlertCircle size={16} /> REVISÃO SOLICITADA
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5, margin: 0 }}>
+                  "{displayMotivo}"
+                </p>
               </div>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.5 }}>
-                "{projeto.motivo_revisao}"
-              </p>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Revision History */}
           {historicoRevisoes.length > 0 && (
