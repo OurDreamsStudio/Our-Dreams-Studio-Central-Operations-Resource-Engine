@@ -627,7 +627,7 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
                                     </span>
                                   </div>
                                   <p style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0, lineHeight: 1.4 }}>
-                                    "{rev.motivo}"
+                                    "{typeof rev.motivo === 'string' ? rev.motivo : (rev.motivo?.resumo || JSON.stringify(rev.motivo))}"
                                   </p>
                                 </div>
                               ))}
