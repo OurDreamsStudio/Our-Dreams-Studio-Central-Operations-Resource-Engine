@@ -27,13 +27,30 @@ export default async function DashboardPage() {
     error = err.message || 'Erro desconhecido ao carregar dashboard';
   }
 
-  const receitaTotal = () => projetos
-    .filter((p) => p.valor_fechado)
-    .reduce((acc, p) => acc + Number(p.valor_fechado || 0), 0);
+  // ── LÓGICA FINANCEIRA CORRIGIDA ──────────────────────────────────────
+  // Receita em caixa = apenas o que foi efetivamente pago
+  // sinal_pago → 50% | entrega_paga → mais 50%
+  const receitaTotal = () => projetos.reduce((acc, p) => {
+    const valor = Number(p.valor_fechado || 0);
+    let recebido = 0;
+    if (p.sinal_pago) recebido += valor * 0.5;
+    if (p.entrega_paga) recebido += valor * 0.5;
+    return acc + recebido;
+  }, 0);
 
+  // A receber = parcelas ainda não pagas de projetos ATIVOS (não perdidos/cancelados)
   const aReceber = () => projetos
-    .filter((p) => p.valor_fechado && p.sinal_pago && p.status_producao !== 'Entregue' && p.status_producao !== 'Cancelado')
-    .reduce((acc, p) => acc + (Number(p.valor_fechado) / 2), 0);
+    .filter((p) => p.valor_fechado && p.status_funil !== 'Perdido' && p.status_producao !== 'Cancelado')
+    .reduce((acc, p) => {
+      const valor = Number(p.valor_fechado);
+      let pendente = 0;
+      if (!p.sinal_pago) pendente += valor * 0.5;
+      if (!p.entrega_paga) pendente += valor * 0.5;
+      return acc + pendente;
+    }, 0);
+
+  // Projeção = caixa atual + a receber
+  const projecaoTotal = () => receitaTotal() + aReceber();
 
   const emProducao = () => projetos
     .filter((p) => p.status_producao && p.status_producao !== 'Entregue' && p.status_producao !== 'Cancelado')
@@ -44,10 +61,11 @@ export default async function DashboardPage() {
     .length;
 
   const stats = [
-    { label: 'Receita Total', value: `R$ ${receitaTotal().toLocaleString('pt-BR')}`, sub: `Valor bruto (all time)`, color: '#22c55e', icon: <DollarSign size={16} /> },
-    { label: 'A Receber',     value: `R$ ${aReceber().toLocaleString('pt-BR')}`,     sub: '2ª parcela pendente', color: '#eab308', icon: <Activity size={16} /> },
-    { label: 'Em Produção',   value: emProducao(),                                   sub: 'Projetos ativos no estúdio', color: '#3b82f6', icon: <Briefcase size={16} /> },
-    { label: 'Leads Ativos',  value: leadsAtivos(),                                  sub: 'Negociações no CRM', color: '#9d61ff', icon: <Users size={16} /> },
+    { label: 'Receita em Caixa', value: `R$ ${receitaTotal().toLocaleString('pt-BR')}`, sub: 'Pagamentos recebidos (all time)', color: '#22c55e', icon: <DollarSign size={16} /> },
+    { label: 'A Receber',        value: `R$ ${aReceber().toLocaleString('pt-BR')}`,     sub: 'Parcelas pendentes de projetos ativos', color: '#eab308', icon: <Activity size={16} /> },
+    { label: 'Projeção Total',   value: `R$ ${projecaoTotal().toLocaleString('pt-BR')}`, sub: 'Caixa + pipeline completo', color: '#a78bfa', icon: <TrendingUp size={16} /> },
+    { label: 'Em Produção',      value: emProducao(),                                   sub: 'Projetos ativos no estúdio', color: '#3b82f6', icon: <Briefcase size={16} /> },
+    { label: 'Leads Ativos',     value: leadsAtivos(),                                  sub: 'Negociações no CRM', color: '#9d61ff', icon: <Users size={16} /> },
   ];
 
   const revenueByService: Record<string, number> = {};
@@ -101,7 +119,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 24 }} className="stats-grid">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }} className="stats-grid">
         {stats.map((s) => (
           <div
             key={s.label}
@@ -114,7 +132,7 @@ export default async function DashboardPage() {
               </div>
               <div style={{ color: s.color, opacity: 0.8 }}>{s.icon}</div>
             </div>
-            <div style={{ fontSize: 'clamp(20px, 4vw, 32px)', fontWeight: 800, color: s.color, lineHeight: 1 }}>
+            <div style={{ fontSize: 'clamp(18px, 3vw, 28px)', fontWeight: 800, color: s.color, lineHeight: 1 }}>
               {s.value}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>

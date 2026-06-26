@@ -7,6 +7,7 @@ interface EfiData {
   receitaBrutaTotal: number;
   receitaMesAtual: number;
   recebiveisProjetos: number;
+  projecaoTotal: number;
   totalSplits: number;
   splitsPendentes: number;
   OpExMensal: number;
@@ -338,16 +339,18 @@ export default function FinanceiroPage() {
           {/* Quick Metrics Row */}
           <div className="stats-grid" style={{ display: 'grid', gap: 20, marginBottom: 32 }}>
             {[
-              { label: 'Receita Bruta Total', value: `R$ ${efi.receitaBrutaTotal.toLocaleString('pt-BR')}`, icon: <TrendingUp className="text-green" />, color: 'var(--green)' },
-              { label: 'Repasses (Splits)', value: `R$ ${efi.totalSplits.toLocaleString('pt-BR')}`, icon: <TrendingDown className="text-red" />, color: '#ef4444' },
-              { label: 'Margem de Contribuição', value: `R$ ${efi.margemContribuicao.toLocaleString('pt-BR')}`, icon: <Target className="text-accent" />, color: 'var(--accent-light)' },
-              { label: 'OpEx Mensal (Fixo)', value: `R$ ${efi.OpExMensal.toLocaleString('pt-BR')}`, icon: <Layers className="text-muted" />, color: 'var(--text-secondary)' },
+              { label: 'Receita em Caixa', value: `R$ ${efi.receitaBrutaTotal.toLocaleString('pt-BR')}`, icon: <TrendingUp className="text-green" />, color: 'var(--green)', sub: 'Pagamentos efetivamente recebidos' },
+              { label: 'A Receber', value: `R$ ${efi.recebiveisProjetos.toLocaleString('pt-BR')}`, icon: <ArrowUpRight style={{ color: '#eab308' }} />, color: '#eab308', sub: 'Parcelas pendentes de projetos ativos' },
+              { label: 'Projeção Total', value: `R$ ${efi.projecaoTotal.toLocaleString('pt-BR')}`, icon: <Target className="text-accent" />, color: 'var(--accent-light)', sub: 'Caixa + pipeline completo' },
+              { label: 'Repasses (Splits)', value: `R$ ${efi.totalSplits.toLocaleString('pt-BR')}`, icon: <TrendingDown className="text-red" />, color: '#ef4444', sub: 'Total alocado a terceiros' },
+              { label: 'OpEx Mensal (Fixo)', value: `R$ ${efi.OpExMensal.toLocaleString('pt-BR')}`, icon: <Layers className="text-muted" />, color: 'var(--text-secondary)', sub: 'Custos fixos mensais' },
             ].map((m, i) => (
               <div key={i} className="glass" style={{ padding: 20, borderRadius: 16 }}>
                 <div style={{ color: 'var(--text-secondary)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
                   {m.label} {m.icon}
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: m.color }}>{m.value}</div>
+                {m.sub && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{m.sub}</div>}
               </div>
             ))}
           </div>
@@ -385,8 +388,16 @@ export default function FinanceiroPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 500 }}>
                   <tbody>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '16px 24px', color: 'var(--text-secondary)' }}>Receita Bruta (Projetos)</td>
+                      <td style={{ padding: '16px 24px', color: 'var(--text-secondary)' }}>Receita em Caixa (Pagamentos Recebidos)</td>
                       <td style={{ padding: '16px 24px', textAlign: 'right', fontWeight: 700, color: 'var(--green)' }}>+ R$ {efi.receitaBrutaTotal.toLocaleString('pt-BR')}</td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(234,179,8,0.04)' }}>
+                      <td style={{ padding: '16px 24px', color: '#eab308' }}>(↑) A Receber (Pipeline Ativo)</td>
+                      <td style={{ padding: '16px 24px', textAlign: 'right', fontWeight: 700, color: '#eab308' }}>+ R$ {efi.recebiveisProjetos.toLocaleString('pt-BR')}</td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(167,139,250,0.06)' }}>
+                      <td style={{ padding: '16px 24px', fontWeight: 700 }}>(=) Projeção Total</td>
+                      <td style={{ padding: '16px 24px', textAlign: 'right', fontWeight: 800, color: 'var(--accent-light)' }}>R$ {efi.projecaoTotal.toLocaleString('pt-BR')}</td>
                     </tr>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '16px 24px', color: 'var(--text-secondary)' }}>(-) Repasses a Terceiros (Splits/Comissão)</td>

@@ -106,13 +106,23 @@ export async function getFinancialIntelligence() {
     { data: custosFixos },
     { data: hardware }
   ] = await Promise.all([
-    db.from('projetos').select('id, valor_fechado, sinal_pago, entrega_paga, cliente_id, created_at, clientes(nome_artistico, nome_pessoal)'),
+    db.from('projetos').select('id, valor_fechado, sinal_pago, entrega_paga, status_funil, status_producao, cliente_id, created_at, clientes(nome_artistico, nome_pessoal)'),
     db.from('tarefas_terceirizados').select('projeto_id, valor_combinado, status_pagamento'),
     db.from('custos_fixos').select('valor'),
     db.from('ativos_hardware').select('*'),
   ]);
 
-  // 2. Receita Bruta & Recebíveis
+  // ─── LÓGICA FINANCEIRA CORRIGIDA ───────────────────────────────────────────
+  //
+  // receitaBrutaTotal = apenas o que efetivamente entrou em caixa
+  //   sinal_pago  → 50% do valor_fechado recebido
+  //   entrega_paga → mais 50% recebido
+  //
+  // recebiveisProjetos = o que ainda falta receber de projetos ATIVOS
+  //   (exclui Perdidos e Cancelados, pois não haverá pagamento)
+  //
+  // projecaoTotal = caixa atual + a receber (visão completa do pipeline)
+
   let receitaBrutaTotal = 0;
   let recebiveisProjetos = 0;
 
@@ -123,13 +133,34 @@ export async function getFinancialIntelligence() {
 
   projetos?.forEach(p => {
     const valor = Number(p.valor_fechado || 0);
-    receitaBrutaTotal += valor;
-    if (!p.sinal_pago) recebiveisProjetos += valor * 0.5;
-    if (!p.entrega_paga) recebiveisProjetos += valor * 0.5;
-    if (new Date(p.created_at) >= inicioMesAtual) receitaMesAtual += valor;
+    const meioPago = valor * 0.5;
+    const statusFunil = p.status_funil || '';
+    const statusProducao = p.status_producao || '';
+    const isAtivo = statusFunil !== 'Perdido' && statusProducao !== 'Cancelado';
+
+    // O que efetivamente entrou em caixa
+    let recebidoNesteProjeto = 0;
+    if (p.sinal_pago) recebidoNesteProjeto += meioPago;
+    if (p.entrega_paga) recebidoNesteProjeto += meioPago;
+
+    receitaBrutaTotal += recebidoNesteProjeto;
+
+    // Receita recebida no mês atual (usa created_at como proxy — melhor que nada)
+    if (new Date(p.created_at) >= inicioMesAtual) {
+      receitaMesAtual += recebidoNesteProjeto;
+    }
+
+    // A receber: apenas projetos ativos (não perdidos, não cancelados)
+    if (isAtivo) {
+      if (!p.sinal_pago) recebiveisProjetos += meioPago;
+      if (!p.entrega_paga) recebiveisProjetos += meioPago;
+    }
   });
 
-  // 3. Splits
+  // Projeção total = caixa atual + pipeline de recebíveis
+  const projecaoTotal = receitaBrutaTotal + recebiveisProjetos;
+
+  // ─── SPLITS ────────────────────────────────────────────────────────────────
   let totalSplits = 0;
   let splitsPendentes = 0;
   tarefas?.forEach(t => {
@@ -137,10 +168,10 @@ export async function getFinancialIntelligence() {
     if (t.status_pagamento !== 'Pago') splitsPendentes += Number(t.valor_combinado);
   });
 
-  // 4. OpEx
+  // ─── OPEX ──────────────────────────────────────────────────────────────────
   const OpExMensal = custosFixos?.reduce((acc, curr) => acc + Number(curr.valor), 0) || 0;
 
-  // 5. Depreciação
+  // ─── DEPRECIAÇÃO ──────────────────────────────────────────────────────────
   let valorInventarioAtual = 0;
   const hoje = new Date();
   hardware?.forEach(item => {
@@ -150,7 +181,7 @@ export async function getFinancialIntelligence() {
     valorInventarioAtual += Math.max(0, Number(item.valor_compra) - mesesPassados * depreciacaoPorMes);
   });
 
-  // 6. LTV Ranking
+  // ─── LTV RANKING (agrupado por cliente) ────────────────────────────────────
   const TAXA_ENCARGOS = 0.09;
   const ltvMap: Record<string, { nome: string; receitaBruta: number; custos: number; margem: number }> = {};
 
@@ -162,9 +193,15 @@ export async function getFinancialIntelligence() {
         || 'Desconhecido';
       ltvMap[cid] = { nome: clienteNome, receitaBruta: 0, custos: 0, margem: 0 };
     }
-    const valorFechado = Number(p.valor_fechado);
-    ltvMap[cid].receitaBruta += valorFechado;
-    let custosProjeto = valorFechado * TAXA_ENCARGOS;
+
+    // LTV baseado no que efetivamente foi pago pelo cliente
+    const valor = Number(p.valor_fechado || 0);
+    let recebido = 0;
+    if (p.sinal_pago) recebido += valor * 0.5;
+    if (p.entrega_paga) recebido += valor * 0.5;
+
+    ltvMap[cid].receitaBruta += recebido;
+    let custosProjeto = recebido * TAXA_ENCARGOS;
     tarefas?.filter(t => t.projeto_id === p.id).forEach(t => {
       custosProjeto += Number(t.valor_combinado || 0);
     });
@@ -180,6 +217,7 @@ export async function getFinancialIntelligence() {
 
   return {
     receitaBrutaTotal,
+    projecaoTotal,
     receitaMesAtual,
     recebiveisProjetos,
     totalSplits,
