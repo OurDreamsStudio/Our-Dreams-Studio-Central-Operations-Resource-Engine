@@ -15,6 +15,7 @@ import {
   Inbox,
   MoreHorizontal,
   X,
+  CreditCard,
 } from 'lucide-react';
 import { getCountPendingApprovals } from '@/actions/terceirizadosActions';
 import { getLeads } from '@/actions/leadsActions';
@@ -31,6 +32,7 @@ const MORE_LINKS = [
   { href: '/clientes',              label: 'Clientes',    icon: UserCheck },
   { href: '/admin/leads',           label: 'Leads',       icon: Inbox },
   { href: '/admin/financeiro',      label: 'Financeiro',  icon: DollarSign },
+  { href: '/admin/propostas',       label: 'Pagamentos',  icon: CreditCard },
   { href: '/admin/terceirizados',   label: 'Parceiros',   icon: Users },
 ];
 
