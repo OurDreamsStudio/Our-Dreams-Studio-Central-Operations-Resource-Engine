@@ -530,7 +530,7 @@ export default function AdminDatabasePage() {
         title={editingClient ? 'Editar Cliente' : 'Novo Cliente'}
         maxW="600px"
       >
-        <form onSubmit={handleSaveClient} style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }} className="form-grid-2">
+        <form onSubmit={handleSaveClient} className="form-grid-2">
           {formError && (
             <div style={{ 
               gridColumn: 'span 2', 
@@ -604,7 +604,7 @@ export default function AdminDatabasePage() {
         title={editingProject ? 'Editar Projeto' : 'Novo Projeto Manual'}
         maxW="700px"
       >
-        <form onSubmit={handleSaveProject} style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }} className="form-grid-2">
+        <form onSubmit={handleSaveProject} className="form-grid-2">
               
               <div style={{ gridColumn: 'span 2' }}>
                 <label className="field-label">Nome do Projeto (Título na Agenda)</label>
@@ -623,7 +623,7 @@ export default function AdminDatabasePage() {
 
               <div style={{ gridColumn: 'span 2' }}>
                 <label className="field-label">Serviços Selecionados</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, background: 'var(--bg-base)', padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}>
+                <div className="responsive-grid-2" style={{ gap: 10, background: 'var(--bg-base)', padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}>
                   {SERVICOS.map(servico => (
                     <label key={servico} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
                       <input 
@@ -729,7 +729,7 @@ export default function AdminDatabasePage() {
                     </div>
                   ) : (
                     <>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+                      <div className="responsive-grid-3" style={{ gap: 8, marginBottom: 16 }}>
                         {terceirizados.map(t => (
                           <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, padding: '6px 10px', background: selectedTerceiros.includes(t.id) ? 'rgba(124,58,237,0.1)' : 'var(--bg-base)', borderRadius: 8, border: '1px solid', borderColor: selectedTerceiros.includes(t.id) ? 'var(--accent)' : 'var(--border)', transition: '0.2s' }}>
                             <input 
@@ -757,8 +757,8 @@ export default function AdminDatabasePage() {
                           {selectedTerceiros.map(id => {
                             const t = terceirizados.find(x => x.id === id);
                             return (
-                              <div key={id} style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 12, alignItems: 'center', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}>
-                                <div>
+                              <div key={id} style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}>
+                                <div style={{ flex: '1 1 100%' }}>
                                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>DESCRIÇÃO ({t?.nome})</div>
                                   <input 
                                     className="field-input" 

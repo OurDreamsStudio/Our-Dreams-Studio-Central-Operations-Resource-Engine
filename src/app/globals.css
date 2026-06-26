@@ -228,6 +228,41 @@ body {
   }
 }
 
+/* New Responsive Grid Utilities */
+.responsive-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+@media (min-width: 768px) {
+  .responsive-grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.responsive-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+@media (min-width: 768px) {
+  .responsive-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.responsive-grid-sidebar {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+@media (min-width: 768px) {
+  .responsive-grid-sidebar {
+    grid-template-columns: 1fr 320px;
+    gap: 32px;
+  }
+}
+
 /* Generic responsive page padding */
 .page-wrapper {
   padding: 20px 16px;

@@ -288,7 +288,7 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* Diagnóstico & Financeiro */}
-      <div className="dashboard-grid" style={{ display: 'grid', gap: 20, marginBottom: 20 }}>
+      <div className="responsive-grid-2" style={{ marginBottom: 20 }}>
         {/* Diagnóstico */}
         <div className="glass" style={{ padding: '20px 24px' }}>
           <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -350,7 +350,7 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* n8n Status & Cofre do Engenheiro */}
-      <div style={{ display: 'grid', gridTemplateColumns: n8n ? '1fr 1fr' : '1fr', gap: 20, marginBottom: 20 }} className={n8n ? 'dashboard-grid' : ''}>
+      <div className={n8n ? 'responsive-grid-2' : ''} style={{ gap: 20, marginBottom: 20, display: !n8n ? 'block' : undefined }}>
         {n8n && (
           <div className="glass" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
             <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>

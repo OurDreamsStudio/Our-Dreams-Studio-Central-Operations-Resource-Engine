@@ -208,7 +208,7 @@ export default function WarRoomPage() {
       )}
 
       {/* War Room Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 32 }}>
+      <div className="responsive-grid-sidebar">
         
         {/* Left Column: Dossier Sections */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
@@ -218,7 +218,7 @@ export default function WarRoomPage() {
             <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
               <Layers size={20} className="text-accent" /> Produção & Assets
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div className="responsive-grid-2">
               <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 20 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 12, textTransform: 'uppercase' }}>Asset Vault (Link de Ouro)</div>
                 {projeto.link_entrega_final ? (

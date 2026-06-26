@@ -142,7 +142,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.5fr) minmax(0,1fr)', gap: 16, marginBottom: 24 }} className="dashboard-grid">
+      <div className="dashboard-grid" style={{ marginBottom: 24 }}>
         {/* Receita por Serviço Bar Chart */}
         <div className="glass" style={{ padding: '24px 26px' }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 20, color: 'var(--text-primary)' }}>
@@ -231,7 +231,7 @@ export default async function DashboardPage() {
             </button>
           </Link>
         </div>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="table-scroll" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>

@@ -337,7 +337,7 @@ export default function FinanceiroPage() {
       {activeTab === 'dashboard' && (
         <>
           {/* Quick Metrics Row */}
-          <div className="stats-grid" style={{ display: 'grid', gap: 20, marginBottom: 32 }}>
+          <div className="stats-grid" style={{ marginBottom: 32 }}>
             {[
               { label: 'Receita em Caixa', value: `R$ ${efi.receitaBrutaTotal.toLocaleString('pt-BR')}`, icon: <TrendingUp className="text-green" />, color: 'var(--green)', sub: 'Pagamentos efetivamente recebidos' },
               { label: 'A Receber', value: `R$ ${efi.recebiveisProjetos.toLocaleString('pt-BR')}`, icon: <ArrowUpRight style={{ color: '#eab308' }} />, color: '#eab308', sub: 'Parcelas pendentes de projetos ativos' },
@@ -356,7 +356,7 @@ export default function FinanceiroPage() {
           </div>
 
           {/* Main Grid: Charts & Tables */}
-          <div className="dashboard-grid" style={{ display: 'grid', gap: 24, marginBottom: 24 }}>
+          <div className="dashboard-grid" style={{ marginBottom: 24 }}>
             {/* Left Column: Line Chart & DRE */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
               {/* Fluxo de Caixa Visualization */}
@@ -492,7 +492,7 @@ export default function FinanceiroPage() {
           </div>
 
           {/* Tables Row: Full Management */}
-          <div className="dashboard-grid" style={{ display: 'grid', gap: 24 }}>
+          <div className="dashboard-grid">
             <div className="glass" style={{ padding: 0, borderRadius: 20, overflow: 'hidden' }}>
               <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700 }}>Gestão de Custos Fixos</h3>
