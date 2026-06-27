@@ -208,9 +208,12 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
 
   const currentStatus = projeto.status_producao || '';
   const currentIndex = ETAPAS_PRODUCAO.indexOf(currentStatus as typeof ETAPAS_PRODUCAO[number]);
-  const isVaultUnlocked = currentStatus === 'Revisão' || currentStatus === 'Entregue';
+  const isVaultUnlocked = currentStatus === 'Revisão' || currentStatus === 'Aprovado' || currentStatus === 'Entregue';
   const isLastStage = currentIndex === ETAPAS_PRODUCAO.length - 1;
   const clienteNome = projeto.clientes?.nome_artistico || projeto.clientes?.nome_pessoal || 'Artista';
+  const clienteAprovou = projeto.cliente_aprovado === true;
+  const ambosAprovaram = currentStatus === 'Aprovado';
+
 
   // Revision counters
   const disponiveis = Number(projeto.revisoes_disponiveis ?? MAX_REVISOES);
@@ -598,32 +601,62 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
           </div>
 
           {/* APPROVAL & REVISION SECTION */}
-          {(projeto.status_producao === 'Revisão' || projeto.data_aprovacao) && (
+          {(projeto.status_producao === 'Revisão' || projeto.status_producao === 'Aprovado' || clienteAprovou) && (
             <div className="glass" style={{ 
               padding: '24px', 
-              border: projeto.data_aprovacao ? '1px solid var(--green)' : '1px solid var(--border)',
-              background: projeto.data_aprovacao ? 'rgba(34,197,94,0.05)' : 'var(--bg-card)'
+              border: ambosAprovaram ? '1px solid rgba(6,182,212,0.4)' : clienteAprovou ? '1px solid rgba(34,197,94,0.4)' : '1px solid var(--border)',
+              background: ambosAprovaram ? 'rgba(6,182,212,0.05)' : clienteAprovou ? 'rgba(34,197,94,0.05)' : 'var(--bg-card)'
             }}>
-              {projeto.data_aprovacao ? (
+              {ambosAprovaram ? (
+                // Estado 3: Ambos aprovaram — aguardando pagamento final
+                <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                  <div style={{ 
+                    display: 'inline-flex', alignItems: 'center', gap: 8, 
+                    color: '#22d3ee', fontWeight: 700, fontSize: 16, marginBottom: 8 
+                  }}>
+                    <CheckCircle2 size={24} /> Projeto Aprovado por Todos!
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 12 }}>
+                    ✅ O produtor confirmou que está tudo certo.<br/>
+                    Assim que o pagamento final for confirmado, os arquivos serão liberados.
+                  </div>
+                  {projeto.data_aprovacao && (
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      Aprovado em {new Date(projeto.data_aprovacao).toLocaleString('pt-BR', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      }).replace(',', ' às')}
+                    </div>
+                  )}
+                </div>
+              ) : clienteAprovou ? (
+                // Estado 2: Cliente aprovou, aguardando admin
                 <div style={{ textAlign: 'center', padding: '10px 0' }}>
                   <div style={{ 
                     display: 'inline-flex', alignItems: 'center', gap: 8, 
                     color: 'var(--green)', fontWeight: 700, fontSize: 16, marginBottom: 8 
                   }}>
-                    <CheckCircle2 size={24} /> Projeto Aprovado!
+                    <CheckCircle2 size={24} /> Aprovação Enviada!
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    ✅ Aprovado Oficialmente em {new Date(projeto.data_aprovacao).toLocaleString('pt-BR', {
-                      day: '2-digit', month: '2-digit', year: 'numeric',
-                      hour: '2-digit', minute: '2-digit'
-                    }).replace(',', ' às')}
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                    Sua aprovação foi registrada. Aguardando confirmação final do produtor.
                   </div>
+                  {projeto.data_aprovacao && (
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+                      ✅ Aprovado em {new Date(projeto.data_aprovacao).toLocaleString('pt-BR', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      }).replace(',', ' às')}
+                    </div>
+                  )}
                 </div>
               ) : (
+                // Estado 1: Aguardando aprovação do cliente
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                     Sua Aprovação é Necessária
                   </h3>
+
                   <button
                     onClick={handleAprovar}
                     disabled={isPending}

@@ -301,13 +301,48 @@ export async function deleteProjeto(id: string) {
 // --- ROTAS PÚBLICAS (usam service_role pois o artista não tem sessão) ---
 
 export async function aprovarProjeto(token: string) {
-  const statusFinal = ETAPAS_PRODUCAO[ETAPAS_PRODUCAO.length - 1];
+  // O cliente aprova a revisão:
+  // Não move para 'Entregue' diretamente.
+  // Apenas marca cliente_aprovado = true e aguarda aprovação do admin.
   const { error } = await supabaseServer
     .from('projetos')
-    .update({ data_aprovacao: new Date().toISOString(), status_producao: statusFinal, motivo_revisao: null })
+    .update({ 
+      data_aprovacao: new Date().toISOString(), 
+      cliente_aprovado: true,
+      motivo_revisao: null 
+    })
     .eq('public_token', token);
   if (error) throw new Error(error.message);
   revalidatePath('/p/[token]', 'page');
+  revalidatePath('/producao');
+  revalidatePath('/admin/projetos');
+  return true;
+}
+
+export async function adminAprovarProjeto(id: string) {
+  // O admin confirma que o projeto está correto.
+  // Só pode aprovar se o cliente já aprovou (cliente_aprovado = true).
+  await requireAuth();
+  const db = await createUserClient();
+
+  // Verificar se o cliente já aprovou
+  const { data: proj, error: fetchError } = await db
+    .from('projetos')
+    .select('cliente_aprovado, status_producao')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !proj) throw new Error('Projeto não encontrado.');
+  if (!proj.cliente_aprovado) throw new Error('O cliente ainda não aprovou o projeto.');
+
+  const { error } = await db
+    .from('projetos')
+    .update({ status_producao: 'Aprovado' })
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/producao');
+  revalidatePath('/admin/projetos');
   return true;
 }
 
@@ -470,10 +505,19 @@ export async function updateProjetoChecklist(projectId: string, newChecklist: un
 
 export async function updateProjetoStatusProducao(id: string, novoStatus: string) {
   await requireAuth();
+  // Impede mover para 'Entregue' via drag/drop manual — só pagamento confirmado pode fazer isso
+  if (novoStatus === 'Entregue') {
+    throw new Error('Não é possível mover para "Entregue" manualmente. O projeto é movido automaticamente após confirmação do pagamento final.');
+  }
+  // Impede mover para 'Aprovado' via drag — use adminAprovarProjeto
+  if (novoStatus === 'Aprovado') {
+    throw new Error('Use o botão "Aprovar" no card para mover para "Aprovado". O cliente precisa ter aprovado primeiro.');
+  }
   const db = await createUserClient();
   const { error } = await db.from('projetos').update({ status_producao: novoStatus }).eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/producao');
+  revalidatePath('/admin/projetos');
   return true;
 }
 
@@ -502,10 +546,12 @@ export async function desfazerEntregaProjeto(id: string, novoStatusProducao: str
     status_producao: novoStatusProducao,
     entrega_paga: false,
     data_aprovacao: null,
+    cliente_aprovado: false,
   }).eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/producao');
   revalidatePath('/clientes');
+  revalidatePath('/admin/projetos');
   return true;
 }
 

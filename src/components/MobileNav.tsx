@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
   X,
   CreditCard,
+  FileText,
 } from 'lucide-react';
 import { getCountPendingApprovals } from '@/actions/terceirizadosActions';
 import { getLeads } from '@/actions/leadsActions';
@@ -29,6 +30,7 @@ const PRIMARY_LINKS = [
 ];
 
 const MORE_LINKS = [
+  { href: '/admin/projetos',        label: 'Projetos',    icon: FileText },
   { href: '/clientes',              label: 'Clientes',    icon: UserCheck },
   { href: '/admin/leads',           label: 'Leads',       icon: Inbox },
   { href: '/admin/financeiro',      label: 'Financeiro',  icon: DollarSign },

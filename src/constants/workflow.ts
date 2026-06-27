@@ -28,6 +28,7 @@ export const ETAPAS_PRODUCAO = [
   'Execução & Captação',
   'Pós-Produção',
   'Revisão',
+  'Aprovado',
   'Entregue'
 ] as const;
 
@@ -65,6 +66,7 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; border: s
   'Execução & Captação':         { bg: 'rgba(234,179,8,0.15)', text: '#fde047', border: 'rgba(234,179,8,0.3)' },
   'Pós-Produção':                { bg: 'rgba(139,92,246,0.15)', text: '#a78bfa', border: 'rgba(139,92,246,0.3)' },
   'Revisão':                     { bg: 'rgba(245,158,11,0.15)', text: '#fcd34d', border: 'rgba(245,158,11,0.3)' },
+  'Aprovado':                    { bg: 'rgba(6,182,212,0.15)', text: '#22d3ee', border: 'rgba(6,182,212,0.3)' },
   'Entregue':                    { bg: 'rgba(34,197,94,0.15)', text: '#4ade80', border: 'rgba(34,197,94,0.3)' },
   'Cancelado':                   { bg: 'rgba(239,68,68,0.15)', text: '#f87171', border: 'rgba(239,68,68,0.3)' }
 };

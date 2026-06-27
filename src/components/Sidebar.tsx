@@ -34,6 +34,7 @@ export default function Sidebar() {
     { href: '/admin/agenda', label: 'Agenda',   icon: <Calendar size={18} /> },
     { href: '/kanban',  label: 'Vendas',     icon: <Kanban size={18} /> },
     { href: '/producao',label: 'Produção',   icon: <Briefcase size={18} /> },
+    { href: '/admin/projetos', label: 'Central de Projetos', icon: <FileText size={18} /> },
     { 
       href: '/admin/terceirizados', 
       label: 'Controle de Terceiros', 

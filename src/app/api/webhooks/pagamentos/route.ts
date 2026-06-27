@@ -132,7 +132,7 @@ export async function POST(request: Request) {
 
     const { data: project, error: fetchError } = await supabase
       .from('projetos')
-      .select('id, status_producao, cliente_id')
+      .select('id, status_producao, cliente_id, sinal_pago, link_tipo_pagamento')
       .eq('id', projetoId)
       .single();
 
@@ -140,13 +140,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Projeto não encontrado.' }, { status: 404 });
     }
 
-    const updates = {
-      sinal_pago: true,
-      status_funil: 'Fechado',
-      status_producao: project.status_producao || 'Definição de Escopo',
-      // Automatismo: após sinal pago, o link já aponta para pagamento final
-      link_tipo_pagamento: 'entrega'
-    };
+    // Determinar se é sinal ou pagamento final pelo link_tipo_pagamento do projeto
+    const isEntrega = project.link_tipo_pagamento === 'entrega';
+
+    let updates: Record<string, any>;
+
+    if (isEntrega) {
+      // PAGAMENTO FINAL: mover para Entregue
+      updates = {
+        entrega_paga: true,
+        status_producao: 'Entregue',
+        link_tipo_pagamento: 'entrega', // mantém
+      };
+    } else {
+      // SINAL: iniciar produção
+      updates = {
+        sinal_pago: true,
+        status_funil: 'Fechado',
+        status_producao: project.status_producao || 'Definição de Escopo',
+        // Após sinal pago, o link já aponta para pagamento final
+        link_tipo_pagamento: 'entrega'
+      };
+    }
 
     const { error: updateError } = await supabase
       .from('projetos')
@@ -168,7 +183,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Pagamento confirmado e projeto atualizado para Fechado.' 
+      message: isEntrega 
+        ? 'Pagamento final confirmado. Projeto movido para Entregue.' 
+        : 'Sinal confirmado. Produção iniciada.'
     });
 
   } catch (error: any) {

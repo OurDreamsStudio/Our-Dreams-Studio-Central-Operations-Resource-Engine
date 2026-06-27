@@ -6,13 +6,13 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Link from 'next/link';
-import { Disc, DollarSign, Calendar, Users, X, CheckCircle, Link as LinkIcon, Check, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Disc, DollarSign, Calendar, Users, X, CheckCircle, Link as LinkIcon, Check, Settings, ChevronLeft, ChevronRight, ShieldCheck, RotateCcw } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useGrabScroll } from '@/hooks/useGrabScroll';
 
 import { ETAPAS_PRODUCAO, ProducaoStatus, getStatusTheme } from '@/constants/workflow';
 import { Projeto, Cliente, Terceirizado, TarefaTerceirizado, Notificacao } from '@/types';
-import { getProjetosProducao, updateProjetoChecklist, updateProjetoStatusProducao, updateProjetoLinkArquivos, confirmarEntregaProjeto } from '@/actions/databaseActions'; // [SEC REFACTOR]
+import { getProjetosProducao, updateProjetoChecklist, updateProjetoStatusProducao, updateProjetoLinkArquivos, confirmarEntregaProjeto, adminAprovarProjeto, desfazerEntregaProjeto } from '@/actions/databaseActions'; // [SEC REFACTOR]
 import { supabase } from '@/lib/supabase';
 
 const COLUMNS: { id: typeof ETAPAS_PRODUCAO[number]; label: string }[] = [
@@ -21,6 +21,7 @@ const COLUMNS: { id: typeof ETAPAS_PRODUCAO[number]; label: string }[] = [
   { id: 'Execução & Captação', label: 'Execução' },
   { id: 'Pós-Produção', label: 'Pós-Produção' },
   { id: 'Revisão', label: 'Revisão' },
+  { id: 'Aprovado', label: 'Aprovado ✅' },
   { id: 'Entregue', label: 'Entregue' },
 ];
 
@@ -66,6 +67,15 @@ export default function ProducaoPage() {
   const [submittingDel, setSubmittingDel] = useState(false);
   const [entregaPaga, setEntregaPaga] = useState(true);
   
+  // Admin Approval
+  const [adminApprovingId, setAdminApprovingId] = useState<string | null>(null);
+  const [submittingApproval, setSubmittingApproval] = useState(false);
+
+  // Undo Delivery Modal
+  const [undoingProject, setUndoingProject] = useState<any | null>(null);
+  const [undoTargetStatus, setUndoTargetStatus] = useState('Pós-Produção');
+  const [submittingUndo, setSubmittingUndo] = useState(false);
+
   // Settings Modal
   const [settingsProject, setSettingsProject] = useState<any | null>(null);
   const [linkInput, setLinkInput] = useState('');
@@ -160,8 +170,17 @@ export default function ProducaoPage() {
   const handleDrop = useCallback(async (colId: string) => {
     if (!dragging) return;
     
+    // Bloquear mover para 'Entregue' manualmente — só via pagamento
     if (colId === 'Entregue') {
-      setDeliveringProject(dragging);
+      alert('Não é possível mover para "Entregue" manualmente. O projeto é movido automaticamente após confirmação do pagamento final.');
+      setDragging(null);
+      setOverCol(null);
+      return;
+    }
+
+    // Bloquear mover para 'Aprovado' via drag — usar botão específico
+    if (colId === 'Aprovado') {
+      alert('Use o botão "Aprovar" no card para mover para "Aprovado". O cliente precisa ter aprovado primeiro.');
       setDragging(null);
       setOverCol(null);
       return;
@@ -261,7 +280,41 @@ export default function ProducaoPage() {
     }
   };
 
+  const handleAdminAprovar = async (projectId: string) => {
+    setAdminApprovingId(projectId);
+    setSubmittingApproval(true);
+    try {
+      await adminAprovarProjeto(projectId);
+      setProjetos(prev => prev.map(p => p.id === projectId ? { ...p, status_producao: 'Aprovado' } : p));
+      router.refresh();
+    } catch (err: any) {
+      alert('Erro ao aprovar: ' + err.message);
+    } finally {
+      setAdminApprovingId(null);
+      setSubmittingApproval(false);
+    }
+  };
+
+  const handleConfirmUndo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!undoingProject) return;
+    setSubmittingUndo(true);
+    try {
+      await desfazerEntregaProjeto(undoingProject.id, undoTargetStatus);
+      setProjetos(prev => prev.map(p => p.id === undoingProject.id ? {
+        ...p, status_producao: undoTargetStatus, entrega_paga: false, data_aprovacao: null, cliente_aprovado: false
+      } : p));
+      setUndoingProject(null);
+      router.refresh();
+    } catch (err: any) {
+      alert('Erro ao reverter: ' + err.message);
+    } finally {
+      setSubmittingUndo(false);
+    }
+  };
+
   if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Carregando Produção...</div>;
+
 
   return (
     <>
@@ -430,6 +483,63 @@ export default function ProducaoPage() {
                           }}>
                             <Users size={12} /> {proj.terceirizados}
                           </div>
+                        )}
+
+                        {/* Badges de Aprovação Dupla */}
+                        {proj.status_producao === 'Revisão' && (
+                          <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {proj.cliente_aprovado ? (
+                              <div style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)',
+                                padding: '6px 8px', borderRadius: 6, fontSize: 11, color: '#4ade80', fontWeight: 600
+                              }}>
+                                <Check size={12} /> Cliente Aprovou!
+                              </div>
+                            ) : (
+                              <div style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)',
+                                padding: '6px 8px', borderRadius: 6, fontSize: 11, color: 'var(--text-muted)'
+                              }}>
+                                <Clock size={12} /> Aguardando aprovação do cliente
+                              </div>
+                            )}
+
+                            {/* Botão de aprovação pelo admin se o cliente já aprovou */}
+                            {proj.cliente_aprovado && (
+                              <button
+                                onClick={() => handleAdminAprovar(proj.id)}
+                                disabled={adminApprovingId === proj.id}
+                                style={{
+                                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                  background: 'var(--accent)', color: '#fff', border: 'none', padding: '8px',
+                                  borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
+                                }}
+                              >
+                                <ShieldCheck size={14} /> {adminApprovingId === proj.id ? 'Aprovando...' : 'Aprovar como Admin'}
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Botão de Reverter Etapa para projetos Aprovados ou Entregues */}
+                        {(proj.status_producao === 'Aprovado' || proj.status_producao === 'Entregue') && (
+                          <button
+                            onClick={() => {
+                              setUndoingProject(proj);
+                              setUndoTargetStatus('Pós-Produção'); // valor inicial sugerido
+                            }}
+                            style={{
+                              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                              background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
+                              color: '#f87171', padding: '8px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                              cursor: 'pointer', marginBottom: 10, transition: 'all 0.2s'
+                            }}
+                            className="hover:bg-red-500/20"
+                          >
+                            <RotateCcw size={12} /> Desfazer / Reverter Etapa
+                          </button>
                         )}
 
                         {/* Checklist (if any) */}
@@ -682,6 +792,76 @@ export default function ProducaoPage() {
                   }}
                 >
                   {submittingSettings ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+      {/* Undo/Revert Delivery Modal */}
+      {undoingProject && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          zIndex: 1000, padding: isMobile ? 0 : 20
+        }} className="fade-in">
+          <div style={{
+            background: 'var(--bg-surface)', border: '1px solid var(--border)',
+            padding: isMobile ? '24px 20px' : '32px',
+            borderRadius: isMobile ? '20px 20px 0 0' : '16px',
+            width: '100%', maxWidth: isMobile ? '100%' : '400px',
+            boxShadow: '0 -8px 40px rgba(0,0,0,0.5)', textAlign: 'center'
+          }} className="fade-up">
+            
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(239,68,68,0.1)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <RotateCcw size={24} />
+            </div>
+
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Reverter Projeto</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 20, lineHeight: 1.5 }}>
+              Você está desfazendo a entrega/aprovação de <strong>{undoingProject.clientes?.nome_artistico || undoingProject.clientes?.nome_pessoal || 'Projeto'}</strong>.<br/>
+              Para qual etapa da produção o projeto deve voltar?
+            </p>
+
+            <form onSubmit={handleConfirmUndo} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              
+              <div>
+                <select
+                  value={undoTargetStatus}
+                  onChange={e => setUndoTargetStatus(e.target.value)}
+                  style={{
+                    width: '100%', padding: '12px 16px', borderRadius: 8,
+                    background: 'var(--bg-base)', border: '1px solid var(--border)',
+                    color: '#fff', outline: 'none', fontSize: 14
+                  }}
+                >
+                  {ETAPAS_PRODUCAO.filter(e => e !== 'Entregue' && e !== 'Aprovado').map(etapa => (
+                    <option key={etapa} value={etapa}>{etapa}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button 
+                  type="button" 
+                  onClick={() => setUndoingProject(null)}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: 8,
+                    background: 'var(--bg-base)', color: 'var(--text-primary)', fontWeight: 600,
+                    border: '1px solid var(--border)', cursor: 'pointer',
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={submittingUndo}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: 8,
+                    background: '#ef4444', color: '#fff', fontWeight: 700,
+                    border: 'none', cursor: submittingUndo ? 'not-allowed' : 'pointer',
+                    opacity: submittingUndo ? 0.7 : 1, transition: '0.2s'
+                  }}
+                >
+                  {submittingUndo ? 'Revertendo...' : 'Confirmar Reversão'}
                 </button>
               </div>
             </form>
