@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Link from 'next/link';
-import { Disc, DollarSign, Calendar, Users, X, Link as LinkIcon, Check, Settings, ChevronLeft, ChevronRight, ShieldCheck, RotateCcw, Clock } from 'lucide-react';
+import { Disc, DollarSign, Calendar, Users, X, CheckCircle, Link as LinkIcon, Check, Settings, ChevronLeft, ChevronRight, ShieldCheck, RotateCcw, Clock } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useGrabScroll } from '@/hooks/useGrabScroll';
 
