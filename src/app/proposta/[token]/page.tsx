@@ -78,9 +78,15 @@ export default function ProposalPage({ params }: { params: Promise<{ token: stri
 
   const clienteNome = projeto.clientes?.nome_artistico || projeto.clientes?.nome_pessoal || 'Artista';
   const valorTotal = Number(projeto.valor_fechado || 0);
-  const valorSinal = valorTotal / 2;
+  const valorParcela = valorTotal / 2;
   const servicos: Record<string, number> = projeto.valores_servicos || {};
-  const isFechado = projeto.sinal_pago || projeto.status_funil === 'Fechado';
+  
+  // Tipo de link configurado pelo admin: 'sinal' ou 'entrega'
+  const tipoLink: 'sinal' | 'entrega' = projeto.link_tipo_pagamento || 'sinal';
+  const isSinal = tipoLink === 'sinal';
+
+  // A parcela atual já foi paga?
+  const isCurrentPaymentDone = isSinal ? projeto.sinal_pago : projeto.entrega_paga;
 
   return (
     <div style={{ padding: 'clamp(20px, 4vw, 40px) clamp(16px, 4vw, 20px)', maxWidth: 800, margin: '0 auto' }} className="fade-up">
@@ -145,17 +151,19 @@ export default function ProposalPage({ params }: { params: Promise<{ token: stri
         </div>
 
         {/* Status de Fechamento / Aceite e Pagamento */}
-        {isFechado ? (
+        {isCurrentPaymentDone ? (
            <div className="glass" style={{ 
             padding: '32px', textAlign: 'center',
             background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.3)'
           }}>
             <CheckCircle2 size={48} style={{ color: 'var(--green)', margin: '0 auto 16px' }} />
             <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
-              Projeto Confirmado!
+              {isSinal ? 'Sinal Confirmado!' : 'Pagamento Final Confirmado!'}
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: 15, marginBottom: 24 }}>
-              O sinal já foi pago e o projeto consta como fechado. Acompanhe o progresso pelo seu link de tracking.
+              {isSinal
+                ? 'O sinal já foi pago e o projeto está em produção. Acompanhe o progresso pelo seu link de tracking.'
+                : 'O pagamento final foi confirmado. Seus arquivos estarão disponíveis em breve.'}
             </p>
             <a 
               href={`/p/${token}`}
@@ -216,9 +224,22 @@ export default function ProposalPage({ params }: { params: Promise<{ token: stri
               padding: '24px', background: 'rgba(124,58,237,0.05)', 
               borderRadius: '12px', border: '1px solid rgba(124,58,237,0.2)' 
             }}>
+              {/* Badge do tipo de pagamento */}
+              <div style={{ 
+                display: 'inline-flex', alignItems: 'center', gap: 6, 
+                fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                color: isSinal ? 'var(--accent-light)' : '#f59e0b',
+                background: isSinal ? 'rgba(124,58,237,0.1)' : 'rgba(245,158,11,0.1)',
+                border: isSinal ? '1px solid rgba(124,58,237,0.2)' : '1px solid rgba(245,158,11,0.2)',
+                padding: '4px 10px', borderRadius: 99, width: 'fit-content'
+              }}>
+                {isSinal ? '💳 Sinal (50% inicial)' : '🏁 Pagamento Final (50% restantes)'}
+              </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Sinal para iniciar (50%)</span>
-                <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{formatCurrency(valorSinal)}</span>
+                <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+                  {isSinal ? 'Valor do sinal para iniciar' : 'Saldo restante para entrega'}
+                </span>
+                <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{formatCurrency(valorParcela)}</span>
               </div>
               
               <button
@@ -226,7 +247,7 @@ export default function ProposalPage({ params }: { params: Promise<{ token: stri
                 disabled={!acceptedTerms || isPending}
                 style={{
                   width: '100%', padding: '16px', borderRadius: '8px',
-                  background: acceptedTerms ? 'var(--accent)' : 'var(--bg-surface)',
+                  background: acceptedTerms ? (isSinal ? 'var(--accent)' : '#d97706') : 'var(--bg-surface)',
                   color: acceptedTerms ? '#fff' : 'var(--text-muted)',
                   border: acceptedTerms ? 'none' : '1px solid var(--border)',
                   fontSize: 16, fontWeight: 700, cursor: acceptedTerms && !isPending ? 'pointer' : 'not-allowed',
@@ -234,7 +255,11 @@ export default function ProposalPage({ params }: { params: Promise<{ token: stri
                   boxShadow: acceptedTerms && !isPending ? '0 0 20px var(--accent-glow)' : 'none'
                 }}
               >
-                {isPending ? 'Gerando checkout...' : 'Pagar Sinal e Iniciar'}
+                {isPending 
+                  ? 'Gerando checkout...' 
+                  : isSinal 
+                    ? 'Pagar Sinal e Iniciar Projeto'
+                    : 'Pagar e Liberar Entrega Final'}
                 {acceptedTerms && !isPending && <ExternalLink size={18} />}
               </button>
             </div>

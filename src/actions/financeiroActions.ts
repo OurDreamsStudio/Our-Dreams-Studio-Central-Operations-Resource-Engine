@@ -330,6 +330,8 @@ export async function saveOrcamentoLink(
       status_producao: finalStatusProducao,
       orcamento_pdf_url: urlToSave,
       public_token: crypto.randomUUID(),
+      // Automatismo: se sinal já pago, link aponta para entrega; caso contrário, para sinal
+      link_tipo_pagamento: finalSinalPago ? 'entrega' : 'sinal',
     }]).select('id').single();
 
     if (createError) throw new Error(createError.message);
@@ -420,6 +422,8 @@ export async function updateOrcamentoLink(projetoId: string, link: string, statu
     updateData.sinal_pago = finalSinalPago;
     updateData.entrega_paga = finalEntregaPaga;
     updateData.status_producao = finalStatusProducao;
+    // Automatismo: define o tipo de link com base no estado de pagamento resultante
+    updateData.link_tipo_pagamento = finalSinalPago ? 'entrega' : 'sinal';
 
     // Sincronizar status do cliente
     if (project.cliente_id) {

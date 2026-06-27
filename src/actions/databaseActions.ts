@@ -431,6 +431,8 @@ export async function fecharProjetoNoKanban(clienteId: string, projectData: Reco
     sinal_pago: projectData.sinal_pago,
     prazo_entrega: projectData.prazo_entrega || null,
     public_token: crypto.randomUUID(),
+    // Automatismo: projeto recém-fechado sempre começa com link apontando para sinal
+    link_tipo_pagamento: 'sinal',
   }]).select().single();
 
   if (projError) throw new Error(projError.message);

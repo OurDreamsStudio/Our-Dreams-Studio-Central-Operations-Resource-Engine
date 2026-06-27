@@ -19,6 +19,8 @@ export async function getPropostasDinamicas() {
       public_token,
       status_funil,
       sinal_pago,
+      entrega_paga,
+      link_tipo_pagamento,
       created_at,
       clientes (id, nome_artistico, nome_pessoal)
     `)
@@ -62,6 +64,7 @@ export async function savePropostaDinamica(id: string | null, data: {
       entrega_paga: false,
       status_producao: null, // Ainda não iniciou produção
       orcamento_pdf_url: null, // É dinâmico
+      link_tipo_pagamento: 'sinal',
       public_token: crypto.randomUUID() 
     };
     const { error } = await db.from('projetos').insert([insertData]);
@@ -81,5 +84,33 @@ export async function deletePropostaDinamica(id: string) {
   const { error } = await db.from('projetos').delete().eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/admin/propostas');
+  return true;
+}
+
+/**
+ * Atualiza manualmente o status de pagamento e o tipo de link de pagamento de uma proposta.
+ * Permite ao admin reverter/definir sinal_pago, entrega_paga e link_tipo_pagamento.
+ */
+export async function updatePaymentStatus(
+  projetoId: string,
+  sinalPago: boolean,
+  entregaPaga: boolean,
+  linkTipoPagamento: 'sinal' | 'entrega'
+) {
+  await requireAuth();
+  const db = await createUserClient();
+
+  const { error } = await db
+    .from('projetos')
+    .update({
+      sinal_pago: sinalPago,
+      entrega_paga: entregaPaga,
+      link_tipo_pagamento: linkTipoPagamento,
+    })
+    .eq('id', projetoId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/admin/propostas');
+  revalidatePath('/admin/financeiro');
   return true;
 }

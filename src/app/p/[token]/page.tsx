@@ -424,6 +424,34 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
                     <div style={{ height: '100%', width: '50%', background: projeto.entrega_paga ? 'var(--green)' : 'transparent', transition: 'background 0.3s' }} />
                   </div>
                 </div>
+
+                {/* Botão de pagamento pendente — só aparece quando há parcela em aberto */}
+                {projeto.public_token && (!projeto.sinal_pago || !projeto.entrega_paga) && (
+                  <a
+                    href={`/proposta/${projeto.public_token}`}
+                    style={{ textDecoration: 'none', display: 'block', marginTop: 4 }}
+                  >
+                    <button
+                      style={{
+                        width: '100%', padding: '13px 16px', borderRadius: 10,
+                        background: !projeto.sinal_pago
+                          ? 'linear-gradient(135deg, var(--accent), #6d28d9)'
+                          : 'linear-gradient(135deg, #d97706, #b45309)',
+                        color: '#fff', border: 'none', fontSize: 13, fontWeight: 700,
+                        cursor: 'pointer', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', gap: 8, transition: '0.3s',
+                        boxShadow: !projeto.sinal_pago
+                          ? '0 0 18px var(--accent-glow)'
+                          : '0 0 18px rgba(217,119,6,0.35)'
+                      }}
+                    >
+                      <CreditCard size={16} />
+                      {!projeto.sinal_pago
+                        ? `Pagar Sinal — ${formatCurrency(projeto.valor_fechado / 2)}`
+                        : `Pagar Entrega Final — ${formatCurrency(projeto.valor_fechado / 2)}`}
+                    </button>
+                  </a>
+                )}
               </div>
             </div>
           )}

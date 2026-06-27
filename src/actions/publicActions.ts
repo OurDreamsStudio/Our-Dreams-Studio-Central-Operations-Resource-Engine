@@ -14,6 +14,8 @@ export async function getPublicProject(token: string) {
       valor_fechado,
       sinal_pago,
       entrega_paga,
+      link_tipo_pagamento,
+      public_token,
       referencias,
       link_arquivos,
       data_aprovacao,
@@ -70,6 +72,8 @@ export async function getPublicProposal(token: string) {
       valores_servicos,
       valor_fechado,
       sinal_pago,
+      entrega_paga,
+      link_tipo_pagamento,
       status_funil,
       clientes (
         nome_artistico,
@@ -88,10 +92,13 @@ import { MercadoPagoConfig, Preference } from 'mercadopago';
 export async function gerarCheckout(token: string) {
   const projeto = await getPublicProposal(token);
   if (!projeto) throw new Error('Projeto não encontrado');
-  if (projeto.sinal_pago) throw new Error('Sinal já foi pago');
 
   const valorTotal = projeto.valor_fechado || 0;
-  const valorSinal = valorTotal / 2;
+  const valorParcela = valorTotal / 2;
+
+  // Determina o tipo de cobrança: sinal (50% inicial) ou entrega (50% final)
+  const tipoLink = projeto.link_tipo_pagamento || 'sinal';
+  const isSinal = tipoLink === 'sinal';
 
   const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
   if (!accessToken) {
@@ -106,14 +113,18 @@ export async function gerarCheckout(token: string) {
     baseUrl = 'https://www.mercadopago.com.br'; // Fallback for MP validation
   }
 
+  const itemTitle = isSinal
+    ? `Sinal (50%) - ${projeto.tipo_servico || projeto.servicos_fechados || 'Projeto'}`
+    : `Pagamento Final (50%) - ${projeto.tipo_servico || projeto.servicos_fechados || 'Projeto'}`;
+
   const response = await preference.create({
     body: {
       items: [
         {
           id: projeto.id,
-          title: `Sinal (50%) - ${projeto.tipo_servico || projeto.servicos_fechados || 'Projeto'}`,
+          title: itemTitle,
           quantity: 1,
-          unit_price: valorSinal,
+          unit_price: valorParcela,
           currency_id: 'BRL',
         }
       ],

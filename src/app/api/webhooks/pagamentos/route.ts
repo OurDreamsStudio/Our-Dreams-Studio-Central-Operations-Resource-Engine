@@ -143,7 +143,9 @@ export async function POST(request: Request) {
     const updates = {
       sinal_pago: true,
       status_funil: 'Fechado',
-      status_producao: project.status_producao || 'Definição de Escopo'
+      status_producao: project.status_producao || 'Definição de Escopo',
+      // Automatismo: após sinal pago, o link já aponta para pagamento final
+      link_tipo_pagamento: 'entrega'
     };
 
     const { error: updateError } = await supabase

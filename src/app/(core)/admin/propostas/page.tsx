@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { FileText, Plus, Trash2, Edit, Copy, CheckCircle, ExternalLink, Loader2, Send } from 'lucide-react';
-import { getPropostasDinamicas, savePropostaDinamica, deletePropostaDinamica } from '@/actions/propostasActions';
+import { FileText, Plus, Trash2, Edit, Copy, CheckCircle, ExternalLink, Loader2, Send, Settings, CreditCard, CheckCircle2, AlertCircle } from 'lucide-react';
+import { getPropostasDinamicas, savePropostaDinamica, deletePropostaDinamica, updatePaymentStatus } from '@/actions/propostasActions';
 import { getClientes } from '@/actions/databaseActions';
 import { handleSupabaseError, formatCurrency } from '@/lib/utils';
 import { SERVICOS } from '@/constants/workflow';
@@ -17,6 +17,13 @@ export default function CentralPropostasPage() {
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+
+  // Modal de controle de pagamento
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentTarget, setPaymentTarget] = useState<any>(null);
+  const [paymentSinalPago, setPaymentSinalPago] = useState(false);
+  const [paymentEntregaPaga, setPaymentEntregaPaga] = useState(false);
+  const [paymentLinkTipo, setPaymentLinkTipo] = useState<'sinal' | 'entrega'>('sinal');
 
   // Form State
   const [clienteId, setClienteId] = useState('');
@@ -49,7 +56,7 @@ export default function CentralPropostasPage() {
     // Realtime: escuta mudanças em propostas e clientes
     const channel = supabase
       .channel('realtime-propostas')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'propostas_dinamicas' }, () => { fetchData(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projetos' }, () => { fetchData(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => { fetchData(); })
       .subscribe();
 
@@ -91,6 +98,34 @@ export default function CentralPropostasPage() {
     
     setIsEditing(true);
     setShowModal(true);
+  };
+
+  // --- Controle de Pagamento ---
+  const handleOpenPaymentModal = (p: any) => {
+    setPaymentTarget(p);
+    setPaymentSinalPago(!!p.sinal_pago);
+    setPaymentEntregaPaga(!!p.entrega_paga);
+    setPaymentLinkTipo(p.link_tipo_pagamento || 'sinal');
+    setShowPaymentModal(true);
+  };
+
+  const handleSavePaymentStatus = () => {
+    if (!paymentTarget) return;
+    startTransition(async () => {
+      try {
+        await updatePaymentStatus(
+          paymentTarget.id,
+          paymentSinalPago,
+          paymentEntregaPaga,
+          paymentLinkTipo
+        );
+        setShowPaymentModal(false);
+        setPaymentTarget(null);
+        fetchData();
+      } catch (err: any) {
+        alert(handleSupabaseError(err));
+      }
+    });
   };
 
   const addServicoLinha = () => {
@@ -172,6 +207,21 @@ export default function CentralPropostasPage() {
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
+  // Helper: retorna info de pagamento para exibição na tabela
+  const getPaymentDisplay = (p: any) => {
+    const sinal = p.sinal_pago;
+    const entrega = p.entrega_paga;
+    if (sinal && entrega) return { label: '✅ Tudo Pago', color: 'var(--green)', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.3)' };
+    if (sinal) return { label: '50% Pago', color: '#10b981', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.3)' };
+    return { label: 'Aguardando', color: 'var(--text-muted)', bg: 'rgba(255,255,255,0.04)', border: 'var(--border)' };
+  };
+
+  const getLinkTipoBadge = (p: any) => {
+    const tipo = p.link_tipo_pagamento || 'sinal';
+    if (tipo === 'entrega') return { label: '🏁 Link: Entrega', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)' };
+    return { label: '💳 Link: Sinal', color: 'var(--accent-light)', bg: 'rgba(124,58,237,0.1)', border: 'rgba(124,58,237,0.3)' };
+  };
+
   if (loading) {
     return (
       <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -206,13 +256,14 @@ export default function CentralPropostasPage() {
 
       <div className="glass" style={{ padding: 0, borderRadius: 20, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 800 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14, minWidth: 900 }}>
             <thead>
               <tr style={{ background: 'rgba(0,0,0,0.2)', textAlign: 'left', color: 'var(--text-muted)' }}>
                 <th style={{ padding: '16px 24px' }}>CLIENTE / PROJETO</th>
                 <th style={{ padding: '16px 24px' }}>TIPO SERVIÇO</th>
                 <th style={{ padding: '16px 24px', textAlign: 'right' }}>VALOR TOTAL</th>
-                <th style={{ padding: '16px 24px', textAlign: 'center' }}>SINAL</th>
+                <th style={{ padding: '16px 24px', textAlign: 'center' }}>PAGAMENTO</th>
+                <th style={{ padding: '16px 24px', textAlign: 'center' }}>LINK ATIVO</th>
                 <th style={{ padding: '16px 24px', textAlign: 'center' }}>STATUS</th>
                 <th style={{ padding: '16px 24px', textAlign: 'right' }}>AÇÕES</th>
               </tr>
@@ -220,6 +271,8 @@ export default function CentralPropostasPage() {
             <tbody>
               {propostas.map((p) => {
                 const clienteNome = p.clientes?.nome_artistico || p.clientes?.nome_pessoal || 'Desconhecido';
+                const payDisplay = getPaymentDisplay(p);
+                const linkBadge = getLinkTipoBadge(p);
                 const isPaid = p.sinal_pago || p.status_funil === 'Fechado';
                 return (
                 <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -233,14 +286,35 @@ export default function CentralPropostasPage() {
                   <td style={{ padding: '16px 24px', textAlign: 'right', fontWeight: 700, color: 'var(--accent-light)' }}>
                     {formatCurrency(Number(p.valor_fechado || 0))}
                   </td>
+                  {/* Coluna de status de pagamento */}
                   <td style={{ padding: '16px 24px', textAlign: 'center' }}>
-                    {isPaid ? (
-                      <span style={{ color: 'var(--green)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 12, fontWeight: 700 }}>
-                        <CheckCircle size={14} /> Pago
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+                      <span style={{ 
+                        fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 99,
+                        color: payDisplay.color, background: payDisplay.bg, border: `1px solid ${payDisplay.border}`
+                      }}>
+                        {payDisplay.label}
                       </span>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Aguardando</span>
-                    )}
+                      {/* Detalhe: sinal e entrega individualmente */}
+                      <div style={{ display: 'flex', gap: 4, fontSize: 10, color: 'var(--text-muted)' }}>
+                        <span style={{ color: p.sinal_pago ? 'var(--green)' : 'var(--text-muted)' }}>
+                          {p.sinal_pago ? '✓' : '○'} Sinal
+                        </span>
+                        <span>·</span>
+                        <span style={{ color: p.entrega_paga ? 'var(--green)' : 'var(--text-muted)' }}>
+                          {p.entrega_paga ? '✓' : '○'} Entrega
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  {/* Badge do tipo de link */}
+                  <td style={{ padding: '16px 24px', textAlign: 'center' }}>
+                    <span style={{ 
+                      fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 99,
+                      color: linkBadge.color, background: linkBadge.bg, border: `1px solid ${linkBadge.border}`
+                    }}>
+                      {linkBadge.label}
+                    </span>
                   </td>
                   <td style={{ padding: '16px 24px', textAlign: 'center' }}>
                      <span style={{ 
@@ -261,6 +335,17 @@ export default function CentralPropostasPage() {
                     <button onClick={() => window.open(`/proposta/${p.public_token}`, '_blank')} title="Ver Proposta" style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.3)', color: 'var(--accent-light)', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>
                       <ExternalLink size={14} />
                     </button>
+                    {/* Botão de Controle de Pagamento — sempre visível */}
+                    <button 
+                      onClick={() => handleOpenPaymentModal(p)} 
+                      title="Controlar Pagamento"
+                      style={{ 
+                        background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', 
+                        color: '#10b981', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' 
+                      }}
+                    >
+                      <CreditCard size={14} />
+                    </button>
                     {!isPaid && (
                       <>
                         <button onClick={() => handleOpenEdit(p)} title="Editar" style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>
@@ -273,10 +358,10 @@ export default function CentralPropostasPage() {
                     )}
                   </td>
                 </tr>
-              )})}
+              );})}
               {propostas.length === 0 && (
                 <tr>
-                  <td colSpan={6} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={7} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
                     <FileText size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
                     Nenhuma proposta gerada ainda. Crie uma nova para enviar ao seu cliente.
                   </td>
@@ -287,6 +372,197 @@ export default function CentralPropostasPage() {
         </div>
       </div>
 
+      {/* ===== Modal: Controle de Pagamento ===== */}
+      {showPaymentModal && paymentTarget && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: 480 }}>
+            <div className="modal-header">
+              <div>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Settings size={18} style={{ color: '#10b981' }} /> Controle de Pagamento
+                </h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                  {paymentTarget.clientes?.nome_artistico || paymentTarget.clientes?.nome_pessoal} — {paymentTarget.nome}
+                </p>
+              </div>
+              <button type="button" onClick={() => setShowPaymentModal(false)} className="close-btn">&times;</button>
+            </div>
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+              {/* Valor total info */}
+              <div style={{ 
+                padding: '12px 16px', borderRadius: 10, 
+                background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Valor Total do Projeto</span>
+                <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--accent-light)' }}>
+                  {formatCurrency(Number(paymentTarget.valor_fechado || 0))}
+                </span>
+              </div>
+
+              {/* Status do Sinal */}
+              <div>
+                <label className="field-label">Sinal (50% — {formatCurrency(Number(paymentTarget.valor_fechado || 0) / 2)})</label>
+                <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentSinalPago(false)}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                      background: !paymentSinalPago ? 'rgba(239,68,68,0.12)' : 'transparent',
+                      border: `1px solid ${!paymentSinalPago ? 'rgba(239,68,68,0.4)' : 'var(--border)'}`,
+                      color: !paymentSinalPago ? '#ef4444' : 'var(--text-secondary)',
+                      transition: '0.2s'
+                    }}
+                  >
+                    ○ Pendente
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentSinalPago(true)}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                      background: paymentSinalPago ? 'rgba(34,197,94,0.12)' : 'transparent',
+                      border: `1px solid ${paymentSinalPago ? 'rgba(34,197,94,0.4)' : 'var(--border)'}`,
+                      color: paymentSinalPago ? 'var(--green)' : 'var(--text-secondary)',
+                      transition: '0.2s'
+                    }}
+                  >
+                    ✓ Pago
+                  </button>
+                </div>
+              </div>
+
+              {/* Status da Entrega */}
+              <div>
+                <label className="field-label">Entrega Final (50% — {formatCurrency(Number(paymentTarget.valor_fechado || 0) / 2)})</label>
+                <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentEntregaPaga(false)}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                      background: !paymentEntregaPaga ? 'rgba(239,68,68,0.12)' : 'transparent',
+                      border: `1px solid ${!paymentEntregaPaga ? 'rgba(239,68,68,0.4)' : 'var(--border)'}`,
+                      color: !paymentEntregaPaga ? '#ef4444' : 'var(--text-secondary)',
+                      transition: '0.2s'
+                    }}
+                  >
+                    ○ Pendente
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentEntregaPaga(true)}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                      background: paymentEntregaPaga ? 'rgba(34,197,94,0.12)' : 'transparent',
+                      border: `1px solid ${paymentEntregaPaga ? 'rgba(34,197,94,0.4)' : 'var(--border)'}`,
+                      color: paymentEntregaPaga ? 'var(--green)' : 'var(--text-secondary)',
+                      transition: '0.2s'
+                    }}
+                  >
+                    ✓ Pago
+                  </button>
+                </div>
+              </div>
+
+              {/* Tipo do Link de Pagamento */}
+              <div>
+                <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <CreditCard size={13} /> Tipo de Link Gerado (página de proposta)
+                </label>
+                <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentLinkTipo('sinal')}
+                    style={{
+                      flex: 1, padding: '12px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                      background: paymentLinkTipo === 'sinal' ? 'rgba(124,58,237,0.12)' : 'transparent',
+                      border: `1px solid ${paymentLinkTipo === 'sinal' ? 'var(--accent)' : 'var(--border)'}`,
+                      color: paymentLinkTipo === 'sinal' ? 'var(--accent-light)' : 'var(--text-secondary)',
+                      transition: '0.2s'
+                    }}
+                  >
+                    💳 Sinal (50% inicial)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentLinkTipo('entrega')}
+                    style={{
+                      flex: 1, padding: '12px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                      background: paymentLinkTipo === 'entrega' ? 'rgba(245,158,11,0.12)' : 'transparent',
+                      border: `1px solid ${paymentLinkTipo === 'entrega' ? '#f59e0b' : 'var(--border)'}`,
+                      color: paymentLinkTipo === 'entrega' ? '#f59e0b' : 'var(--text-secondary)',
+                      transition: '0.2s'
+                    }}
+                  >
+                    🏁 Entrega Final (50%)
+                  </button>
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, lineHeight: 1.5 }}>
+                  Este campo define qual cobrança será gerada quando o cliente clicar em "Pagar" na página de proposta. Você pode alterar isso a qualquer momento.
+                </p>
+              </div>
+
+              {/* Preview do estado */}
+              <div style={{ 
+                padding: '12px 16px', borderRadius: 10, 
+                background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border)' 
+              }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>Preview</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ 
+                    fontSize: 11, padding: '3px 9px', borderRadius: 99, fontWeight: 700,
+                    color: paymentSinalPago ? 'var(--green)' : '#ef4444',
+                    background: paymentSinalPago ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                    border: `1px solid ${paymentSinalPago ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`
+                  }}>
+                    Sinal: {paymentSinalPago ? 'Pago ✓' : 'Pendente ○'}
+                  </span>
+                  <span style={{ 
+                    fontSize: 11, padding: '3px 9px', borderRadius: 99, fontWeight: 700,
+                    color: paymentEntregaPaga ? 'var(--green)' : '#ef4444',
+                    background: paymentEntregaPaga ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                    border: `1px solid ${paymentEntregaPaga ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`
+                  }}>
+                    Entrega: {paymentEntregaPaga ? 'Pago ✓' : 'Pendente ○'}
+                  </span>
+                  <span style={{ 
+                    fontSize: 11, padding: '3px 9px', borderRadius: 99, fontWeight: 700,
+                    color: paymentLinkTipo === 'sinal' ? 'var(--accent-light)' : '#f59e0b',
+                    background: paymentLinkTipo === 'sinal' ? 'rgba(124,58,237,0.1)' : 'rgba(245,158,11,0.1)',
+                    border: `1px solid ${paymentLinkTipo === 'sinal' ? 'rgba(124,58,237,0.3)' : 'rgba(245,158,11,0.3)'}`
+                  }}>
+                    Link → {paymentLinkTipo === 'sinal' ? '💳 Sinal' : '🏁 Entrega'}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowPaymentModal(false)} 
+                  style={{ flex: 1, padding: '12px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button" 
+                  onClick={handleSavePaymentStatus} 
+                  disabled={isPending}
+                  style={{ flex: 2, padding: '12px', borderRadius: 8, background: '#10b981', border: 'none', color: '#fff', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 0 15px rgba(16,185,129,0.3)' }}
+                >
+                  {isPending ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                  {isPending ? 'Salvando...' : 'Salvar Status'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Modal: Nova / Editar Proposta ===== */}
       {showModal && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: 600, maxHeight: '90vh', overflowY: 'auto' }}>
@@ -389,6 +665,33 @@ export default function CentralPropostasPage() {
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        .modal-overlay {
+          position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+          display: flex; align-items: flex-start; justify-content: center;
+          z-index: 2000; padding: 40px 20px; overflow-y: auto;
+        }
+        .modal-content {
+          background: var(--bg-surface); border: 1px solid var(--border);
+          border-radius: 20px; width: 100%; box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+          animation: fadeUp 0.3s ease-out; position: relative;
+        }
+        .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; }
+        .close-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 22px; line-height: 1; }
+        .field-label { display: block; font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .field-input { width: 100%; padding: 12px; border-radius: 10px; background: var(--bg-base); border: 1px solid var(--border); color: #fff; outline: none; transition: 0.2s; font-size: 14px; box-sizing: border-box; }
+        .field-input:focus { border-color: var(--accent); }
+        .btn-primary { background: var(--accent); color: #fff; border: none; padding: 12px; border-radius: 10px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .btn-secondary { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .animate-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
