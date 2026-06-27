@@ -1,5 +1,3 @@
-'use server';
-
 import { requireAuth } from '@/lib/requireAuth';
 import { createUserClient } from '@/lib/supabaseUserClient';
 import ProjetosManagerClient from './ProjetosManagerClient';
