@@ -3,7 +3,8 @@
 import { supabaseServer } from '@/lib/supabaseServer';
 
 export async function getPublicProject(token: string) {
-  const { data, error } = await supabaseServer
+  // 1. Tentar buscar pelo public_token
+  let { data, error } = await supabaseServer
     .from('projetos')
     .select(`
       id,
@@ -30,9 +31,46 @@ export async function getPublicProject(token: string) {
       )
     `)
     .eq('public_token', token)
-    .single();
+    .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  // 2. Se não encontrar, ou se o token passado for o ID direto do projeto (fallback de contingência)
+  if (!data) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token);
+    if (isUuid) {
+      const { data: fallbackData } = await supabaseServer
+        .from('projetos')
+        .select(`
+          id,
+          tipo_servico,
+          status_producao,
+          prazo_entrega,
+          servicos_fechados,
+          valor_fechado,
+          sinal_pago,
+          entrega_paga,
+          link_tipo_pagamento,
+          public_token,
+          referencias,
+          link_arquivos,
+          data_aprovacao,
+          motivo_revisao,
+          contador_revisoes,
+          revisoes_disponiveis,
+          historico_revisoes,
+          cliente_aprovado,
+          clientes (
+            nome_artistico,
+            nome_pessoal
+          )
+        `)
+        .eq('id', token)
+        .maybeSingle();
+      
+      if (fallbackData) return fallbackData;
+    }
+  }
+
+  if (error && !data) throw new Error(error.message);
   return data;
 }
 
