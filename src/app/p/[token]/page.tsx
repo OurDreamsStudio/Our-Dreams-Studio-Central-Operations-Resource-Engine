@@ -206,7 +206,7 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
     );
   }
 
-  const currentStatus = projeto.status_producao || '';
+  const currentStatus = projeto.status_producao || 'Definição de Escopo';
   const currentIndex = ETAPAS_PRODUCAO.indexOf(currentStatus as typeof ETAPAS_PRODUCAO[number]);
   const isVaultUnlocked = currentStatus === 'Revisão' || currentStatus === 'Aprovado' || currentStatus === 'Entregue';
   const isLastStage = currentIndex === ETAPAS_PRODUCAO.length - 1;
