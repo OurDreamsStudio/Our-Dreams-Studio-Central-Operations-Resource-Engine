@@ -6,13 +6,13 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Link from 'next/link';
-import { Disc, DollarSign, Calendar, Users, X, CheckCircle, Link as LinkIcon, Check, Settings, ChevronLeft, ChevronRight, ShieldCheck, RotateCcw, Clock } from 'lucide-react';
+import { Disc, DollarSign, Calendar, Users, X, Link as LinkIcon, Check, Settings, ChevronLeft, ChevronRight, ShieldCheck, RotateCcw, Clock } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useGrabScroll } from '@/hooks/useGrabScroll';
 
 import { ETAPAS_PRODUCAO, ProducaoStatus, getStatusTheme } from '@/constants/workflow';
 import { Projeto, Cliente, Terceirizado, TarefaTerceirizado, Notificacao } from '@/types';
-import { getProjetosProducao, updateProjetoChecklist, updateProjetoStatusProducao, updateProjetoLinkArquivos, confirmarEntregaProjeto, adminAprovarProjeto, desfazerEntregaProjeto } from '@/actions/databaseActions'; // [SEC REFACTOR]
+import { getProjetosProducao, updateProjetoChecklist, updateProjetoStatusProducao, updateProjetoLinkArquivos, adminAprovarProjeto, desfazerEntregaProjeto } from '@/actions/databaseActions'; // [SEC REFACTOR]
 import { supabase } from '@/lib/supabase';
 
 const COLUMNS: { id: typeof ETAPAS_PRODUCAO[number]; label: string }[] = [
@@ -62,11 +62,6 @@ export default function ProducaoPage() {
   const [overCol, setOverCol] = useState<ProducaoStatus | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Delivery Modal
-  const [deliveringProject, setDeliveringProject] = useState<string | null>(null);
-  const [submittingDel, setSubmittingDel] = useState(false);
-  const [entregaPaga, setEntregaPaga] = useState(true);
-  
   // Admin Approval
   const [adminApprovingId, setAdminApprovingId] = useState<string | null>(null);
   const [submittingApproval, setSubmittingApproval] = useState(false);
@@ -221,11 +216,6 @@ export default function ProducaoPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleCloseDeliveryModal = () => {
-    setDeliveringProject(null);
-    setEntregaPaga(true);
-  };
-
   const handleOpenSettings = (proj: Projeto) => {
     setSettingsProject(proj);
     setLinkInput(proj.link_arquivos || '');
@@ -252,31 +242,6 @@ export default function ProducaoPage() {
       alert('Erro ao salvar configurações.');
     } finally {
       setSubmittingSettings(false);
-    }
-  };
-
-  const handleConfirmDelivery = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!deliveringProject) return;
-    setSubmittingDel(true);
-
-    try {
-      await confirmarEntregaProjeto(deliveringProject, entregaPaga);
-      setProjetos((prev) =>
-        prev.map((p) => (p.id === deliveringProject ? {
-          ...p,
-          status_producao: 'Entregue',
-          entrega_paga: entregaPaga
-        } : p))
-      );
-      handleCloseDeliveryModal();
-      router.refresh();
-
-    } catch (error) {
-      console.error('Error delivering project:', error);
-      alert('Erro ao confirmar entrega.');
-    } finally {
-      setSubmittingDel(false);
     }
   };
 
@@ -649,73 +614,6 @@ export default function ProducaoPage() {
           })}
         </div>
       </div>
-
-      {/* Delivery Checkout Modal */}
-      {deliveringProject && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-          zIndex: 1000, padding: isMobile ? 0 : 20
-        }} className="fade-in">
-          <div style={{
-            background: 'var(--bg-surface)', border: '1px solid var(--border)',
-            padding: isMobile ? '24px 20px' : '32px',
-            borderRadius: isMobile ? '20px 20px 0 0' : '16px',
-            width: '100%', maxWidth: isMobile ? '100%' : '400px',
-            boxShadow: '0 -8px 40px rgba(0,0,0,0.5)', textAlign: 'center'
-          }} className="fade-up">
-            
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(34,197,94,0.1)', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <CheckCircle size={24} />
-            </div>
-
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Entregar Projeto</h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 24, lineHeight: 1.5 }}>
-              Você está movendo este projeto para finalizado. O cliente já realizou o pagamento dos 50% finais (acerto de contas)?
-            </p>
-
-            <form onSubmit={handleConfirmDelivery} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer', background: 'var(--bg-base)', padding: '16px', borderRadius: 12, border: '1px solid var(--border)' }}>
-                <input
-                  type="checkbox"
-                  checked={entregaPaga}
-                  onChange={e => setEntregaPaga(e.target.checked)}
-                  style={{ width: 20, height: 20, accentColor: '#22c55e' }}
-                />
-                <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>Sim, o projeto está 100% pago.</span>
-              </label>
-
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button 
-                  type="button" 
-                  onClick={handleCloseDeliveryModal}
-                  style={{
-                    flex: 1, padding: '12px', borderRadius: 8,
-                    background: 'var(--bg-base)', color: 'var(--text-primary)', fontWeight: 600,
-                    border: '1px solid var(--border)', cursor: 'pointer',
-                  }}
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={submittingDel}
-                  style={{
-                    flex: 1, padding: '12px', borderRadius: 8,
-                    background: '#22c55e', color: '#fff', fontWeight: 700,
-                    border: 'none', cursor: submittingDel ? 'not-allowed' : 'pointer',
-                    opacity: submittingDel ? 0.7 : 1, transition: '0.2s'
-                  }}
-                >
-                  {submittingDel ? 'Concluindo...' : 'Confirmar Entrega'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Project Settings Modal */}
       {settingsProject && (

@@ -66,6 +66,8 @@ export default function ProjetosManagerClient({ inicialProjetos }: { inicialProj
         servicos_fechados: editingProject.servicos_fechados,
         sinal_pago: editingProject.sinal_pago,
         entrega_paga: editingProject.entrega_paga,
+        // Preserva link_tipo_pagamento para não quebrar o webhook de pagamento
+        link_tipo_pagamento: editingProject.link_tipo_pagamento || null,
       };
 
       await saveProjeto(editingProject.id, payload);

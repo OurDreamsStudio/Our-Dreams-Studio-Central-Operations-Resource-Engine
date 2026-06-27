@@ -42,6 +42,8 @@ const ProjetoSaveSchema = z.object({
   cupom_usado: emptyStringToNull,
   sinal_pago: z.boolean().optional().default(false),
   entrega_paga: z.boolean().optional().default(false),
+  // Preservado em edições para não quebrar o webhook de pagamento
+  link_tipo_pagamento: emptyStringToNull,
 }).strip();
 
 const CustoFixoSchema = z.object({
@@ -143,15 +145,26 @@ export async function saveProjeto(id: string | null, projectData: Record<string,
   let finalStatusFunil = parsed.status_funil || 'Inbound WhatsApp';
   let finalStatusProducao = parsed.status_producao || null;
 
-  if (finalStatusFunil !== 'Fechado') {
-    // Se o status do funil de vendas é menor que "Fechado",
-    // o projeto não pode ter um status de produção ativo.
-    finalStatusProducao = null;
+  // CRÍTICO: esta lógica de status_producao só pode ser aplicada em INSERTs.
+  // Em UPDATEs, nunca zeramos o status_producao — isso tiraria o projeto
+  // do Kanban de Produção mesmo que esteja em plena execução.
+  if (!id) {
+    // INSERT: aplica a regra do funil
+    if (finalStatusFunil !== 'Fechado') {
+      finalStatusProducao = null;
+    } else {
+      if (!finalStatusProducao || finalStatusProducao.trim() === '') {
+        finalStatusProducao = 'Definição de Escopo';
+      }
+    }
   } else {
-    // Se o status do funil é "Fechado", ele deve ter status de produção. Se for nulo/vazio, inicia em "Definição de Escopo".
-    if (!finalStatusProducao || finalStatusProducao.trim() === '') {
+    // UPDATE: apenas garante que se o funil agora é Fechado e não há status, define o padrão.
+    // Nunca força null em projetos que já têm status de produção.
+    if (finalStatusFunil === 'Fechado' && (!finalStatusProducao || finalStatusProducao.trim() === '')) {
       finalStatusProducao = 'Definição de Escopo';
     }
+    // Se funil não é Fechado mas o projeto já tem status_producao, mantemos o que veio do form
+    // (pode ser null se o form enviar null explicitamente, o que é válido só se o admin quiser)
   }
 
   const dataToSave = {
@@ -397,6 +410,9 @@ export async function registrarSolicitacaoRevisao(
       contador_revisoes: nextCount,
       revisoes_disponiveis: nextDisponiveis,
       data_aprovacao: null,
+      // Reseta aprovação do cliente — ela era referente ao material anterior,
+      // não ao novo que será gerado após esta revisão.
+      cliente_aprovado: false,
     })
     .eq('id', projectId)
     .select();
