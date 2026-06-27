@@ -375,7 +375,7 @@ export default function CentralPropostasPage() {
       {/* ===== Modal: Controle de Pagamento ===== */}
       {showPaymentModal && paymentTarget && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: 480 }}>
+          <div className="modal-content payment-modal">
             <div className="modal-header">
               <div>
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -565,7 +565,7 @@ export default function CentralPropostasPage() {
       {/* ===== Modal: Nova / Editar Proposta ===== */}
       {showModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: 600, maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="modal-content proposta-modal">
             <div className="modal-header">
               <h3>{isEditing ? 'Editar Proposta' : 'Nova Proposta Dinâmica'}</h3>
               <button type="button" onClick={() => setShowModal(false)} className="close-btn">&times;</button>
@@ -671,15 +671,31 @@ export default function CentralPropostasPage() {
           position: fixed; top: 0; left: 0; right: 0; bottom: 0;
           background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
           display: flex; align-items: flex-start; justify-content: center;
-          z-index: 2000; padding: 40px 20px; overflow-y: auto;
+          z-index: 2000; padding: 24px 16px; overflow-y: auto;
         }
         .modal-content {
           background: var(--bg-surface); border: 1px solid var(--border);
           border-radius: 20px; width: 100%; box-shadow: 0 30px 60px rgba(0,0,0,0.5);
           animation: fadeUp 0.3s ease-out; position: relative;
+          display: flex; flex-direction: column;
         }
-        .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; }
-        .close-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 22px; line-height: 1; }
+        .payment-modal {
+          max-width: 480px;
+          max-height: calc(100vh - 48px);
+          overflow-y: auto;
+        }
+        .proposta-modal {
+          max-width: 600px;
+          max-height: calc(100vh - 48px);
+          overflow-y: auto;
+        }
+        .modal-header {
+          padding: 20px 24px; border-bottom: 1px solid var(--border);
+          display: flex; justify-content: space-between; align-items: flex-start;
+          position: sticky; top: 0; background: var(--bg-surface);
+          border-radius: 20px 20px 0 0; z-index: 1;
+        }
+        .close-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 22px; line-height: 1; padding: 4px 8px; }
         .field-label { display: block; font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
         .field-input { width: 100%; padding: 12px; border-radius: 10px; background: var(--bg-base); border: 1px solid var(--border); color: #fff; outline: none; transition: 0.2s; font-size: 14px; box-sizing: border-box; }
         .field-input:focus { border-color: var(--accent); }
@@ -690,6 +706,14 @@ export default function CentralPropostasPage() {
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 640px) {
+          .modal-overlay { padding: 0; align-items: flex-end; }
+          .modal-content { border-radius: 20px 20px 0 0; max-height: 92vh; }
+          .payment-modal, .proposta-modal { max-width: 100%; max-height: 92vh; }
+          .modal-header { border-radius: 20px 20px 0 0; padding: 16px 20px; }
+          .field-input { font-size: 16px; }
+          .form-grid-2 { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>
