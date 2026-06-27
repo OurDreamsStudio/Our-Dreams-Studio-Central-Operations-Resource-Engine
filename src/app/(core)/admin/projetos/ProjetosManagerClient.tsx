@@ -27,6 +27,15 @@ export default function ProjetosManagerClient({ inicialProjetos }: { inicialProj
     return artistico.includes(term) || pessoal.includes(term) || nomeProj.includes(term) || servicos.includes(term);
   });
 
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyLink = (token: string, projectId: string) => {
+    const url = `${window.location.origin}/p/${token}`;
+    navigator.clipboard.writeText(url);
+    setCopiedId(projectId);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Deseja realmente excluir este projeto permanentemente? Essa ação não pode ser desfeita.')) return;
     try {
@@ -103,7 +112,7 @@ export default function ProjetosManagerClient({ inicialProjetos }: { inicialProj
 
       {/* Listagem */}
       <div className="glass" style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid var(--border)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 800 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 850 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
               <th style={{ padding: '16px', fontSize: 12, color: 'var(--text-secondary)' }}>Cliente / Projeto</th>
@@ -118,6 +127,7 @@ export default function ProjetosManagerClient({ inicialProjetos }: { inicialProj
             {filteredProjetos.map((proj: any) => {
               const artistico = proj.clientes?.nome_artistico || proj.clientes?.nome_pessoal || 'Desconhecido';
               const theme = getStatusTheme(proj.status_producao);
+              const isCopied = copiedId === proj.id;
               return (
                 <tr key={proj.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }} className="hover:bg-white/[0.01]">
                   <td style={{ padding: '16px' }}>
@@ -162,6 +172,24 @@ export default function ProjetosManagerClient({ inicialProjetos }: { inicialProj
                   </td>
                   <td style={{ padding: '16px' }}>
                     <div style={{ display: 'flex', gap: 8 }}>
+                      {proj.public_token && (
+                        <button
+                          onClick={() => handleCopyLink(proj.public_token, proj.id)}
+                          style={{
+                            background: isCopied ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)',
+                            color: isCopied ? '#4ade80' : 'var(--text-primary)',
+                            border: `1px solid ${isCopied ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`,
+                            padding: '6px 10px',
+                            borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                            display: 'flex', alignItems: 'center', gap: 4,
+                            transition: 'all 0.2s'
+                          }}
+                          title="Copiar Link de Acompanhamento"
+                        >
+                          {isCopied ? <Check size={13} /> : <LinkIcon size={13} />}
+                          {isCopied ? 'Copiado!' : 'Link'}
+                        </button>
+                      )}
                       <button
                         onClick={() => handleOpenEdit(proj)}
                         style={{
