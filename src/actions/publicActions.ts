@@ -27,7 +27,8 @@ export async function getPublicProject(token: string) {
       cliente_aprovado,
       clientes (
         nome_artistico,
-        nome_pessoal
+        nome_pessoal,
+        anotacoes
       )
     `)
     .eq('public_token', token)
@@ -60,7 +61,8 @@ export async function getPublicProject(token: string) {
           cliente_aprovado,
           clientes (
             nome_artistico,
-            nome_pessoal
+            nome_pessoal,
+            anotacoes
           )
         `)
         .eq('id', token)

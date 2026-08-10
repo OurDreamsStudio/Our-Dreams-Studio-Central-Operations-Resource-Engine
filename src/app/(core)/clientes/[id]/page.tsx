@@ -5,9 +5,9 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, Save, Activity, CheckCircle, Disc, X, Share2, Check, FileText, RefreshCw, History, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
+import { Plus, CheckCircle, Disc, X, Share2, Check, FileText, RefreshCw, History, ChevronDown, ChevronUp, RotateCcw, StickyNote, Pencil, Trash2, Music, Bell, Sliders, BookOpen } from 'lucide-react';
 import { SERVICOS, MIX_MASTER_CHECKLIST, ETAPAS_VENDAS, ETAPAS_PRODUCAO, getStatusTheme } from '@/constants/workflow';
-import { getClientProfileData, updateClienteAnotacoes, createUpsellProject, ajustarRevisoesDisponiveis, desfazerEntregaProjeto } from '@/actions/databaseActions';
+import { getClientProfileData, updateClienteAnotacoesArray, createUpsellProject, ajustarRevisoesDisponiveis, desfazerEntregaProjeto } from '@/actions/databaseActions';
 import { supabase } from '@/lib/supabase';
 
 const FLUXO_LABEL: Record<string, { label: string; color: string }> = {
@@ -17,6 +17,51 @@ const FLUXO_LABEL: Record<string, { label: string; color: string }> = {
   CONTRATO_ATIVO:     { label: 'Contrato Ativo',     color: '#22c55e' },
   FINALIZADO:         { label: 'Finalizado',         color: '#3b82f6' },
 };
+
+// --- Anotações ---
+type CategoriaKey = 'letra' | 'lembrete' | 'tecnico' | 'geral';
+
+const CATEGORIAS: Record<CategoriaKey, { label: string; cor: string; icon: React.ReactNode }> = {
+  letra:    { label: 'Letra',     cor: '#a855f7', icon: <Music     size={11} /> },
+  lembrete: { label: 'Lembrete',  cor: '#f59e0b', icon: <Bell      size={11} /> },
+  tecnico:  { label: 'Técnico',   cor: '#3b82f6', icon: <Sliders   size={11} /> },
+  geral:    { label: 'Geral',     cor: '#22c55e', icon: <BookOpen  size={11} /> },
+};
+
+interface Anotacao {
+  id: string;
+  titulo: string;
+  conteudo: string;
+  categoria: CategoriaKey;
+  cor: string;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+function parseLegacyNotes(raw: unknown): Anotacao[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw as Anotacao[];
+  if (typeof raw === 'string') {
+    // Tenta parsear como JSON primeiro
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as Anotacao[];
+    } catch {
+      // é texto legado — converte para uma anotação geral
+      if (raw.trim() === '') return [];
+      return [{
+        id: crypto.randomUUID(),
+        titulo: 'Anotações Antigas',
+        conteudo: raw,
+        categoria: 'geral',
+        cor: CATEGORIAS.geral.cor,
+        criado_em: new Date().toISOString(),
+        atualizado_em: new Date().toISOString(),
+      }];
+    }
+  }
+  return [];
+}
 
 export default function ClienteProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -28,9 +73,23 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
   const [n8n, setN8n] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Cofre do Engenheiro (Anotações)
-  const [anotacoes, setAnotacoes] = useState('');
+  // Anotações individualizadas
+  const [notas, setNotas] = useState<Anotacao[]>([]);
   const [savingNotes, setSavingNotes] = useState(false);
+
+  // Modal de anotação
+  const [notaModal, setNotaModal] = useState<{
+    open: boolean;
+    editing: Anotacao | null;
+  }>({ open: false, editing: null });
+  const [notaForm, setNotaForm] = useState<{
+    titulo: string;
+    conteudo: string;
+    categoria: CategoriaKey;
+  }>({ titulo: '', conteudo: '', categoria: 'geral' });
+
+  // Confirmação de exclusão
+  const [deletingNotaId, setDeletingNotaId] = useState<string | null>(null);
 
   // Upsell Modal (+ Novo Projeto)
   const [showUpsell, setShowUpsell] = useState(false);
@@ -103,7 +162,7 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
       try {
         const { cliente: cData, projetos: pData, n8n: nData } = await getClientProfileData(id);
         setCliente(cData);
-        setAnotacoes(cData?.anotacoes || '');
+        setNotas(parseLegacyNotes(cData?.anotacoes));
         setProjetos(pData || []);
         if (nData) setN8n(nData);
       } catch (err: any) {
@@ -128,15 +187,72 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
     return () => { supabase.removeChannel(channel); };
   }, [id]);
 
-  const handleSaveNotes = async () => {
+  // --- Handlers de Anotações ---
+
+  const openNewNota = () => {
+    setNotaForm({ titulo: '', conteudo: '', categoria: 'geral' });
+    setNotaModal({ open: true, editing: null });
+  };
+
+  const openEditNota = (nota: Anotacao) => {
+    setNotaForm({ titulo: nota.titulo, conteudo: nota.conteudo, categoria: nota.categoria });
+    setNotaModal({ open: true, editing: nota });
+  };
+
+  const closeNotaModal = () => {
+    setNotaModal({ open: false, editing: null });
+    setNotaForm({ titulo: '', conteudo: '', categoria: 'geral' });
+  };
+
+  const handleSaveNota = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notaForm.titulo.trim() || !notaForm.conteudo.trim()) return;
     setSavingNotes(true);
-    try {
-      await updateClienteAnotacoes(id, anotacoes);
-    } catch (error) {
-      console.error('Erro ao salvar anotações:', error);
-      alert('Erro ao salvar anotações.');
+    const now = new Date().toISOString();
+    let novasNotas: Anotacao[];
+
+    if (notaModal.editing) {
+      // Editar existente
+      novasNotas = notas.map(n =>
+        n.id === notaModal.editing!.id
+          ? { ...n, titulo: notaForm.titulo, conteudo: notaForm.conteudo, categoria: notaForm.categoria, cor: CATEGORIAS[notaForm.categoria].cor, atualizado_em: now }
+          : n
+      );
+    } else {
+      // Nova anotação
+      const nova: Anotacao = {
+        id: crypto.randomUUID(),
+        titulo: notaForm.titulo,
+        conteudo: notaForm.conteudo,
+        categoria: notaForm.categoria,
+        cor: CATEGORIAS[notaForm.categoria].cor,
+        criado_em: now,
+        atualizado_em: now,
+      };
+      novasNotas = [nova, ...notas];
     }
-    setSavingNotes(false);
+
+    try {
+      await updateClienteAnotacoesArray(id, novasNotas);
+      setNotas(novasNotas);
+      closeNotaModal();
+    } catch (err: any) {
+      alert('Erro ao salvar anotação: ' + err.message);
+    } finally {
+      setSavingNotes(false);
+    }
+  };
+
+  const handleDeleteNota = async (notaId: string) => {
+    const novasNotas = notas.filter(n => n.id !== notaId);
+    try {
+      await updateClienteAnotacoesArray(id, novasNotas);
+      setNotas(novasNotas);
+    } catch (err: any) {
+      alert('Erro ao excluir anotação: ' + err.message);
+    } finally {
+      setDeletingNotaId(null);
+    }
   };
 
   const handleSubmitUpsell = async (e: React.FormEvent) => {
@@ -349,59 +465,164 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
-      {/* n8n Status & Cofre do Engenheiro */}
-      <div className={n8n ? 'responsive-grid-2' : ''} style={{ gap: 20, marginBottom: 20, display: !n8n ? 'block' : undefined }}>
-        {n8n && (
-          <div className="glass" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
-            <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-              🤖 Estado n8n — WhatsApp
-            </h2>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-                ID: {n8n.whatsapp_id} <br/>
-                Última interação: {new Date(n8n.ultima_interacao).toLocaleString('pt-BR')}
-              </div>
+      {/* n8n Status */}
+      {n8n && (
+        <div className="glass" style={{ padding: '20px 24px', marginBottom: 20 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            🤖 Estado n8n — WhatsApp
+          </h2>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+            ID: {n8n.whatsapp_id} <br/>
+            Última interação: {new Date(n8n.ultima_interacao).toLocaleString('pt-BR')}
+          </div>
+          <span style={{
+            background: `${fluxo?.color}20`, color: fluxo?.color, fontWeight: 700,
+            padding: '5px 14px', borderRadius: 999, fontSize: 12,
+            border: `1px solid ${fluxo?.color}40`, display: 'inline-block'
+          }}>
+            {n8n.status_fluxo}
+          </span>
+        </div>
+      )}
+
+      {/* ===== ANOTAÇÕES ===== */}
+      <div className="glass" style={{ padding: '20px 24px', marginBottom: 20 }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+            <StickyNote size={15} /> Anotações
+            {notas.length > 0 && (
               <span style={{
-                background: `${fluxo?.color}20`, color: fluxo?.color, fontWeight: 700,
-                padding: '5px 14px', borderRadius: 999, fontSize: 12,
-                border: `1px solid ${fluxo?.color}40`, display: 'inline-block'
-              }}>
-                {n8n.status_fluxo}
-              </span>
-            </div>
+                background: 'rgba(124,58,237,0.2)', color: 'var(--accent-light)',
+                borderRadius: 999, padding: '1px 8px', fontSize: 11, fontWeight: 700
+              }}>{notas.length}</span>
+            )}
+          </h2>
+          <button
+            onClick={openNewNota}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: 'rgba(124,58,237,0.15)', color: 'var(--accent-light)',
+              border: '1px solid rgba(124,58,237,0.3)', borderRadius: 8,
+              padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <Plus size={13} /> Nova Anotação
+          </button>
+        </div>
+
+        {/* Cards */}
+        {notas.length === 0 ? (
+          <div style={{
+            textAlign: 'center', padding: '32px 20px',
+            border: '1px dashed var(--border)', borderRadius: 12,
+            color: 'var(--text-muted)', fontSize: 13
+          }}>
+            <StickyNote size={28} style={{ opacity: 0.3, marginBottom: 8 }} />
+            <div>Nenhuma anotação ainda.</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>Adicione letras, lembretes técnicos ou observações sobre o artista.</div>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+            {notas.map(nota => {
+              const cat = CATEGORIAS[nota.categoria] || CATEGORIAS.geral;
+              const isDeleting = deletingNotaId === nota.id;
+              return (
+                <div
+                  key={nota.id}
+                  style={{
+                    background: 'var(--bg-base)',
+                    border: `1px solid ${nota.cor}40`,
+                    borderLeft: `3px solid ${nota.cor}`,
+                    borderRadius: 10,
+                    padding: '14px',
+                    position: 'relative',
+                    transition: 'box-shadow 0.2s',
+                    cursor: 'pointer',
+                  }}
+                  className="nota-card"
+                >
+                  {/* Categoria badge */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      background: `${nota.cor}20`, color: nota.cor,
+                      border: `1px solid ${nota.cor}40`,
+                      borderRadius: 999, padding: '2px 8px', fontSize: 10, fontWeight: 700
+                    }}>
+                      {cat.icon} {cat.label}
+                    </span>
+                    {/* Ações */}
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        onClick={e => { e.stopPropagation(); openEditNota(nota); }}
+                        title="Editar"
+                        style={{
+                          background: 'rgba(255,255,255,0.05)', border: 'none',
+                          color: 'var(--text-muted)', borderRadius: 6,
+                          padding: '4px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center'
+                        }}
+                      >
+                        <Pencil size={11} />
+                      </button>
+                      {isDeleting ? (
+                        <button
+                          onClick={e => { e.stopPropagation(); handleDeleteNota(nota.id); }}
+                          title="Confirmar exclusão"
+                          style={{
+                            background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.4)',
+                            color: '#ef4444', borderRadius: 6,
+                            padding: '4px 7px', cursor: 'pointer', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3
+                          }}
+                        >
+                          <Trash2 size={10} /> Confirmar
+                        </button>
+                      ) : (
+                        <button
+                          onClick={e => { e.stopPropagation(); setDeletingNotaId(nota.id); setTimeout(() => setDeletingNotaId(null), 3000); }}
+                          title="Excluir"
+                          style={{
+                            background: 'rgba(255,255,255,0.05)', border: 'none',
+                            color: 'var(--text-muted)', borderRadius: 6,
+                            padding: '4px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center'
+                          }}
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Título */}
+                  <div
+                    onClick={() => openEditNota(nota)}
+                    style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.3 }}
+                  >
+                    {nota.titulo}
+                  </div>
+
+                  {/* Preview do conteúdo */}
+                  <div
+                    onClick={() => openEditNota(nota)}
+                    style={{
+                      fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5,
+                      display: '-webkit-box', WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical', overflow: 'hidden'
+                    }}
+                  >
+                    {nota.conteudo}
+                  </div>
+
+                  {/* Timestamp */}
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 10 }}>
+                    {new Date(nota.atualizado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
-
-        {/* Cofre do Engenheiro (Anotações Persistent Notes) */}
-        <div className="glass" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 8 }}>
-              🔐 Cofre do Engenheiro
-            </h2>
-            <button 
-              onClick={handleSaveNotes}
-              disabled={savingNotes}
-              style={{
-                background: 'rgba(124,58,237,0.15)', color: 'var(--accent)', border: 'none',
-                padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-                cursor: savingNotes ? 'not-allowed' : 'pointer', transition: '0.2s',
-                display: 'flex', alignItems: 'center', gap: 4
-              }}
-            >
-              <Save size={12} /> {savingNotes ? 'Salvando...' : 'Salvar'}
-            </button>
-          </div>
-          <textarea
-            value={anotacoes}
-            onChange={e => setAnotacoes(e.target.value)}
-            placeholder="Links de Stems, referências do Spotify, BPM, tom da música e observações..."
-            style={{
-              width: '100%', flex: 1, minHeight: 100, background: 'var(--bg-base)',
-              border: '1px solid var(--border)', borderRadius: 8, padding: '12px',
-              color: 'var(--text-primary)', fontSize: 13, resize: 'vertical', outline: 'none'
-            }}
-          />
-        </div>
       </div>
 
       {/* Project Timeline */}
@@ -657,6 +878,169 @@ export default function ClienteProfilePage({ params }: { params: Promise<{ id: s
           </div>
         )}
       </div>
+
+      {/* ===== MODAL DE ANOTAÇÃO ===== */}
+      {notaModal.open && (
+        <div
+          onClick={closeNotaModal}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, padding: 20
+          }}
+          className="fade-in"
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-surface)',
+              border: `1px solid ${CATEGORIAS[notaForm.categoria].cor}40`,
+              padding: 28, borderRadius: 18,
+              width: '100%', maxWidth: 520,
+              boxShadow: `0 24px 60px rgba(0,0,0,0.65), 0 0 40px ${CATEGORIAS[notaForm.categoria].cor}15`,
+              display: 'flex', flexDirection: 'column', gap: 18,
+              transition: 'box-shadow 0.3s',
+            }}
+            className="fade-up"
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: `${CATEGORIAS[notaForm.categoria].cor}20`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: CATEGORIAS[notaForm.categoria].cor
+                }}>
+                  <StickyNote size={17} />
+                </div>
+                <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0 }}>
+                  {notaModal.editing ? 'Editar Anotação' : 'Nova Anotação'}
+                </h2>
+              </div>
+              <button
+                onClick={closeNotaModal}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveNota} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Categoria Selector */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Categoria
+                </label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {(Object.entries(CATEGORIAS) as [CategoriaKey, typeof CATEGORIAS[CategoriaKey]][]).map(([key, cat]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setNotaForm(f => ({ ...f, categoria: key }))}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700,
+                        cursor: 'pointer', transition: 'all 0.18s',
+                        border: `1.5px solid ${notaForm.categoria === key ? cat.cor : 'var(--border)'}`,
+                        background: notaForm.categoria === key ? `${cat.cor}22` : 'var(--bg-base)',
+                        color: notaForm.categoria === key ? cat.cor : 'var(--text-muted)',
+                        transform: notaForm.categoria === key ? 'scale(1.05)' : 'scale(1)',
+                      }}
+                    >
+                      {cat.icon} {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Título */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Título
+                </label>
+                <input
+                  autoFocus
+                  required
+                  type="text"
+                  placeholder={
+                    notaForm.categoria === 'letra' ? 'Ex: Letra — Verso 1' :
+                    notaForm.categoria === 'lembrete' ? 'Ex: Enviar stems até sexta' :
+                    notaForm.categoria === 'tecnico' ? 'Ex: BPM, Tom e referências' : 'Título da anotação'
+                  }
+                  value={notaForm.titulo}
+                  onChange={e => setNotaForm(f => ({ ...f, titulo: e.target.value }))}
+                  style={{
+                    width: '100%', padding: '11px 14px', borderRadius: 8,
+                    background: 'var(--bg-base)',
+                    border: `1px solid ${notaForm.titulo ? CATEGORIAS[notaForm.categoria].cor + '50' : 'var(--border)'}`,
+                    color: 'var(--text-primary)', fontSize: 14, fontWeight: 600, outline: 'none',
+                    transition: 'border-color 0.2s',
+                  }}
+                />
+              </div>
+
+              {/* Conteúdo */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Conteúdo
+                </label>
+                <textarea
+                  required
+                  placeholder={
+                    notaForm.categoria === 'letra' ? 'Cole aqui a letra da música, voz guia ou trecho...' :
+                    notaForm.categoria === 'lembrete' ? 'Descreva o lembrete ou tarefa...' :
+                    notaForm.categoria === 'tecnico' ? 'BPM: 128\nTom: Lá menor\nReferências: ...' :
+                    'Escreva sua observação aqui...'
+                  }
+                  value={notaForm.conteudo}
+                  onChange={e => setNotaForm(f => ({ ...f, conteudo: e.target.value }))}
+                  rows={8}
+                  style={{
+                    width: '100%', padding: '12px 14px', borderRadius: 8,
+                    background: 'var(--bg-base)',
+                    border: `1px solid ${notaForm.conteudo ? CATEGORIAS[notaForm.categoria].cor + '50' : 'var(--border)'}`,
+                    color: 'var(--text-primary)', fontSize: 13, resize: 'vertical', outline: 'none',
+                    lineHeight: 1.6, fontFamily: notaForm.categoria === 'letra' ? 'Georgia, serif' : 'inherit',
+                    transition: 'border-color 0.2s',
+                  }}
+                />
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={closeNotaModal}
+                  style={{
+                    flex: 1, padding: '11px', borderRadius: 8,
+                    background: 'var(--bg-base)', color: 'var(--text-primary)', fontWeight: 600,
+                    border: '1px solid var(--border)', cursor: 'pointer',
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingNotes || !notaForm.titulo.trim() || !notaForm.conteudo.trim()}
+                  style={{
+                    flex: 2, padding: '11px', borderRadius: 8,
+                    background: CATEGORIAS[notaForm.categoria].cor, color: '#fff', fontWeight: 700,
+                    border: 'none',
+                    cursor: (savingNotes || !notaForm.titulo.trim() || !notaForm.conteudo.trim()) ? 'not-allowed' : 'pointer',
+                    opacity: (savingNotes || !notaForm.titulo.trim() || !notaForm.conteudo.trim()) ? 0.6 : 1,
+                    transition: 'all 0.2s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  {savingNotes ? 'Salvando...' : notaModal.editing ? '✔ Salvar Alterações' : '+ Criar Anotação'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Desfazer Entrega Modal */}
       {desfazerModal && (

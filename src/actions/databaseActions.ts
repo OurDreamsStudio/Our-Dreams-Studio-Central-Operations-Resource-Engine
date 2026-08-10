@@ -593,6 +593,29 @@ export async function updateClienteAnotacoes(id: string, anotacoes: string) {
   return true;
 }
 
+export async function updateClienteAnotacoesArray(
+  id: string,
+  anotacoes: Array<{
+    id: string;
+    titulo: string;
+    conteudo: string;
+    categoria: string;
+    cor: string;
+    criado_em: string;
+    atualizado_em: string;
+  }>
+) {
+  await requireAuth();
+  const db = await createUserClient();
+  const { error } = await db
+    .from('clientes')
+    .update({ anotacoes: JSON.stringify(anotacoes) })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/clientes/${id}`);
+  return true;
+}
+
 export async function createUpsellProject(projectData: Record<string, unknown>) {
   await requireAuth();
   const db = await createUserClient();

@@ -4,12 +4,43 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useTransition, use } from 'react';
 import confetti from 'canvas-confetti';
-import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, History, Link as LinkIcon, Plus, Trash2, ExternalLink, CreditCard, Wallet, Mic, Drum, Guitar, Sliders, Radio, Pen, MessageSquare, X } from 'lucide-react';
+import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, History, Link as LinkIcon, Plus, Trash2, ExternalLink, CreditCard, Wallet, Mic, Drum, Guitar, Sliders, Radio, Pen, MessageSquare, X, StickyNote, BookOpen, Bell } from 'lucide-react';
 import { handleSupabaseError, formatCurrency, formatDate } from '@/lib/utils';
 import { ETAPAS_PRODUCAO, getStatusTheme } from '@/constants/workflow';
 import { aprovarProjeto, registrarSolicitacaoRevisao } from '@/actions/databaseActions';
 import { getPublicProject, adicionarReferenciaProjeto, removerReferenciaProjeto } from '@/actions/publicActions'; // [SEC REFACTOR]
 import { ProjetoComCliente, PontoRevisao, FeedbackRevisao, CategoriaRevisao, PrioridadeRevisao } from '@/types';
+
+// --- Tipos e helpers de Anotações do Artista ---
+type CategoriaNotaKey = 'letra' | 'lembrete' | 'tecnico' | 'geral';
+interface AnotacaoPublica {
+  id: string;
+  titulo: string;
+  conteudo: string;
+  categoria: CategoriaNotaKey;
+  cor: string;
+  criado_em: string;
+  atualizado_em: string;
+}
+const NOTAS_CATEGORIAS: Record<CategoriaNotaKey, { label: string; cor: string; icon: React.ReactNode }> = {
+  letra:    { label: 'Letra',    cor: '#a855f7', icon: <Music     size={10} /> },
+  lembrete: { label: 'Lembrete', cor: '#f59e0b', icon: <Bell      size={10} /> },
+  tecnico:  { label: 'Técnico',  cor: '#3b82f6', icon: <Sliders   size={10} /> },
+  geral:    { label: 'Geral',    cor: '#22c55e', icon: <BookOpen  size={10} /> },
+};
+function parseNotasCliente(raw: unknown): AnotacaoPublica[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw as AnotacaoPublica[];
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed as AnotacaoPublica[];
+    } catch {
+      if (raw.trim()) return [{ id: '0', titulo: 'Anotações', conteudo: raw, categoria: 'geral', cor: '#22c55e', criado_em: '', atualizado_em: '' }];
+    }
+  }
+  return [];
+}
 
 // --- Configuração das Categorias e Prioridades ---
 const CATEGORIAS: { label: CategoriaRevisao; emoji: string; cor: string }[] = [
@@ -799,6 +830,74 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
               )}
             </div>
           )}
+          {/* ===== ANOTAÇÕES DO ARTISTA (somente leitura) ===== */}
+          {(() => {
+            const notas = parseNotasCliente(projeto.clientes?.anotacoes);
+            if (notas.length === 0) return null;
+            return (
+              <div className="glass" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
+                  <StickyNote size={15} style={{ color: 'var(--accent-light)' }} />
+                  <h3 style={{
+                    fontSize: 14, fontWeight: 700, color: 'var(--text-muted)',
+                    textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0
+                  }}>
+                    Notas do Produtor
+                  </h3>
+                  <span style={{
+                    background: 'rgba(124,58,237,0.2)', color: 'var(--accent-light)',
+                    borderRadius: 999, padding: '1px 7px', fontSize: 10, fontWeight: 700
+                  }}>{notas.length}</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {notas.map(nota => {
+                    const cat = NOTAS_CATEGORIAS[nota.categoria] || NOTAS_CATEGORIAS.geral;
+                    return (
+                      <div
+                        key={nota.id}
+                        style={{
+                          background: 'rgba(0,0,0,0.2)',
+                          border: `1px solid ${nota.cor}30`,
+                          borderLeft: `3px solid ${nota.cor}`,
+                          borderRadius: 10,
+                          padding: '12px 14px',
+                        }}
+                      >
+                        {/* Badge de categoria */}
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          background: `${nota.cor}18`, color: nota.cor,
+                          border: `1px solid ${nota.cor}30`,
+                          borderRadius: 999, padding: '2px 7px',
+                          fontSize: 10, fontWeight: 700, marginBottom: 7
+                        }}>
+                          {cat.icon} {cat.label}
+                        </span>
+
+                        {/* Título */}
+                        <div style={{
+                          fontWeight: 700, fontSize: 13,
+                          color: 'var(--text-primary)', marginBottom: 6, lineHeight: 1.3
+                        }}>
+                          {nota.titulo}
+                        </div>
+
+                        {/* Conteúdo completo */}
+                        <div style={{
+                          fontSize: 12, color: 'var(--text-secondary)',
+                          lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                          fontFamily: nota.categoria === 'letra' ? 'Georgia, serif' : 'inherit',
+                        }}>
+                          {nota.conteudo}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
         </div>
       </div>
