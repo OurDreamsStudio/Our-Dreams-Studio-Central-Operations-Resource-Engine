@@ -93,7 +93,7 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
       try {
         const data = await getPublicProject(token);
         setProjeto(data);
-        if (data?.projeto_entregaveis?.length > 0) {
+        if ((data?.projeto_entregaveis?.length ?? 0) > 0) {
           setActiveEntregavelId(data.projeto_entregaveis[0].id);
         }
       } catch (err: any) {
