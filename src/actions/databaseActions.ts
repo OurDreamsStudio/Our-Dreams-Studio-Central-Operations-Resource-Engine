@@ -186,6 +186,31 @@ export async function saveProjeto(id: string | null, projectData: Record<string,
 
     if (projectError) throw new Error(projectError.message);
 
+    // Sync projeto_entregaveis if valores_servicos exists
+    if (parsed.valores_servicos && Object.keys(parsed.valores_servicos).length > 0) {
+      const entregaveis = Object.entries(parsed.valores_servicos).map(([nome, valor]) => ({
+        projeto_id: newProject.id,
+        nome_servico: nome,
+        valor: Number(valor),
+        status_producao: finalStatusProducao || 'Definição de Escopo',
+      }));
+      const { error: entregaveisError } = await db.from('projeto_entregaveis').insert(entregaveis);
+      if (entregaveisError) {
+         console.error('Erro ao criar entregaveis:', entregaveisError.message);
+      }
+    } else if (parsed.tipo_servico || parsed.servicos_fechados) {
+      // Fallback Se não houver valores_servicos, mas houver nome do serviço
+      const { error: entregaveisError } = await db.from('projeto_entregaveis').insert([{
+        projeto_id: newProject.id,
+        nome_servico: parsed.servicos_fechados || parsed.tipo_servico || 'Serviço Principal',
+        valor: parsed.valor_fechado || 0,
+        status_producao: finalStatusProducao || 'Definição de Escopo',
+      }]);
+      if (entregaveisError) {
+         console.error('Erro ao criar entregavel fallback:', entregaveisError.message);
+      }
+    }
+
     if (splitsTerceiros && splitsTerceiros.length > 0) {
       try {
         const tasksToInsert = splitsTerceiros.map(split => ({
@@ -313,43 +338,43 @@ export async function deleteProjeto(id: string) {
 
 // --- ROTAS PÚBLICAS (usam service_role pois o artista não tem sessão) ---
 
-export async function aprovarProjeto(token: string) {
+export async function aprovarProjeto(entregavelId: string, token: string) {
   // O cliente aprova a revisão:
   // Não move para 'Entregue' diretamente.
   // Apenas marca cliente_aprovado = true e aguarda aprovação do admin.
   const { error } = await supabaseServer
-    .from('projetos')
+    .from('projeto_entregaveis')
     .update({ 
       data_aprovacao: new Date().toISOString(), 
       cliente_aprovado: true,
       motivo_revisao: null 
     })
-    .eq('public_token', token);
+    .eq('id', entregavelId);
   if (error) throw new Error(error.message);
-  revalidatePath('/p/[token]', 'page');
+  revalidatePath(`/p/${token}`);
   revalidatePath('/producao');
   revalidatePath('/admin/projetos');
   return true;
 }
 
 export async function adminAprovarProjeto(id: string) {
-  // O admin confirma que o projeto está correto.
-  // Só pode aprovar se o cliente já aprovou (cliente_aprovado = true).
   await requireAuth();
   const db = await createUserClient();
 
-  // Verificar se o cliente já aprovou
   const { data: proj, error: fetchError } = await db
-    .from('projetos')
+    .from('projeto_entregaveis')
     .select('cliente_aprovado, status_producao')
     .eq('id', id)
     .single();
 
   if (fetchError || !proj) throw new Error('Projeto não encontrado.');
-  if (!proj.cliente_aprovado) throw new Error('O cliente ainda não aprovou o projeto.');
+  
+  const isApproved = proj.cliente_aprovado;
+  
+  if (!isApproved) throw new Error('O cliente ainda não aprovou o projeto.');
 
   const { error } = await db
-    .from('projetos')
+    .from('projeto_entregaveis')
     .update({ status_producao: 'Aprovado' })
     .eq('id', id);
 
@@ -360,22 +385,19 @@ export async function adminAprovarProjeto(id: string) {
 }
 
 export async function registrarSolicitacaoRevisao(
-  projectId: string,
+  entregavelId: string,
   feedback: import('@/types').FeedbackRevisao | string,
   currentHistory: Array<{ data: string; motivo: any; etapa: string }>
 ) {
   const agora = new Date().toISOString();
 
-  // Gera um resumo de texto legível para exibição rápida
   let resumoTexto: string;
   let motivoParaSalvar: any;
 
   if (typeof feedback === 'string') {
-    // Compatibilidade com o formato legado (string pura)
     resumoTexto = feedback;
     motivoParaSalvar = feedback;
   } else {
-    // Novo formato estruturado
     const cats = [...new Set(feedback.pontos.map((p) => p.categoria))];
     const criticos = feedback.pontos.filter((p) => p.prioridade === 'Crítico').length;
     resumoTexto = `${feedback.pontos.length} ponto(s) · ${cats.join(', ')}${criticos > 0 ? ` · ${criticos} crítico(s)` : ''}`;
@@ -384,25 +406,25 @@ export async function registrarSolicitacaoRevisao(
 
   const novoItem = { data: agora, motivo: motivoParaSalvar, etapa: 'Solicitação de Alteração' };
 
-  const { data: project, error: fetchError } = await supabaseServer
-    .from('projetos')
-    .select('contador_revisoes, revisoes_disponiveis, public_token')
-    .eq('id', projectId)
+  const { data: entregavel, error: fetchError } = await supabaseServer
+    .from('projeto_entregaveis')
+    .select('contador_revisoes, revisoes_disponiveis, projetos(public_token)')
+    .eq('id', entregavelId)
     .single();
 
-  if (fetchError) throw new Error('Erro ao buscar projeto: ' + fetchError.message);
+  if (fetchError) throw new Error('Erro ao buscar entregável: ' + fetchError.message);
 
-  const disponiveis = Number(project?.revisoes_disponiveis ?? 3);
+  const disponiveis = Number(entregavel?.revisoes_disponiveis ?? 3);
   if (disponiveis <= 0) {
     throw new Error('Limite de revisões atingido. Entre em contato com o produtor.');
   }
 
-  const nextCount = (Number(project?.contador_revisoes) || 0) + 1;
+  const nextCount = (Number(entregavel?.contador_revisoes) || 0) + 1;
   const nextDisponiveis = disponiveis - 1;
   const novoHistorico = [...(currentHistory || []), novoItem];
 
   const { data, error } = await supabaseServer
-    .from('projetos')
+    .from('projeto_entregaveis')
     .update({
       status_producao: 'Pós-Produção',
       motivo_revisao: typeof motivoParaSalvar === 'string' ? motivoParaSalvar : JSON.stringify(motivoParaSalvar),
@@ -410,16 +432,18 @@ export async function registrarSolicitacaoRevisao(
       contador_revisoes: nextCount,
       revisoes_disponiveis: nextDisponiveis,
       data_aprovacao: null,
-      // Reseta aprovação do cliente — ela era referente ao material anterior,
-      // não ao novo que será gerado após esta revisão.
       cliente_aprovado: false,
     })
-    .eq('id', projectId)
+    .eq('id', entregavelId)
     .select();
 
   if (error) throw new Error(error.message);
-  revalidatePath(`/admin/projetos/${projectId}`);
-  if (data?.[0]?.public_token) revalidatePath(`/p/${data[0].public_token}`);
+  revalidatePath('/producao');
+  
+  const token = (entregavel.projetos as any)?.public_token;
+  if (token) {
+    revalidatePath(`/p/${token}`);
+  }
   return data?.[0];
 }
 
@@ -474,7 +498,7 @@ export async function fecharProjetoNoKanban(clienteId: string, projectData: Reco
     cliente_id: clienteId,
     nome: projectData.nome,
     status_funil: 'Fechado',
-    status_producao: projectData.status_producao,
+    status_producao: projectData.status_producao || 'Definição de Escopo',
     servicos_fechados: projectData.servicos_fechados,
     checklist_preparacao: projectData.checklist_preparacao,
     valor_fechado: Number(projectData.valor_fechado) || 0,
@@ -487,6 +511,31 @@ export async function fecharProjetoNoKanban(clienteId: string, projectData: Reco
   }]).select().single();
 
   if (projError) throw new Error(projError.message);
+
+  // Sync projeto_entregaveis if valores_servicos exists
+  if (projectData.valores_servicos && typeof projectData.valores_servicos === 'object' && Object.keys(projectData.valores_servicos).length > 0) {
+    const entregaveis = Object.entries(projectData.valores_servicos).map(([nome, valor]) => ({
+      projeto_id: proj.id,
+      nome_servico: nome,
+      valor: Number(valor) || 0,
+      status_producao: projectData.status_producao || 'Definição de Escopo',
+    }));
+    const { error: entregaveisError } = await db.from('projeto_entregaveis').insert(entregaveis);
+    if (entregaveisError) {
+       console.error('Erro ao criar entregaveis:', entregaveisError.message);
+    }
+  } else if (projectData.servicos_fechados || projectData.nome) {
+    // Fallback Se não houver valores_servicos, mas houver nome do serviço
+    const { error: entregaveisError } = await db.from('projeto_entregaveis').insert([{
+      projeto_id: proj.id,
+      nome_servico: projectData.servicos_fechados || projectData.nome || 'Serviço Principal',
+      valor: Number(projectData.valor_fechado) || 0,
+      status_producao: projectData.status_producao || 'Definição de Escopo',
+    }]);
+    if (entregaveisError) {
+       console.error('Erro ao criar entregavel fallback:', entregaveisError.message);
+    }
+  }
 
   const { error: cliError } = await db.from('clientes').update({ status_funil: 'Concluído/Produção' }).eq('id', clienteId);
   if (cliError) throw new Error(cliError.message);
@@ -501,8 +550,8 @@ export async function getProjetosProducao() {
   await requireAuth();
   const db = await createUserClient();
   const { data, error } = await db
-    .from('projetos')
-    .select('*, clientes(*)')
+    .from('projeto_entregaveis')
+    .select('*, projetos(*, clientes(*))')
     .not('status_producao', 'is', null)
     .neq('status_producao', 'Cancelado')
     .order('created_at', { ascending: false });
@@ -510,10 +559,10 @@ export async function getProjetosProducao() {
   return data;
 }
 
-export async function updateProjetoChecklist(projectId: string, newChecklist: unknown) {
+export async function updateProjetoChecklist(entregavelId: string, newChecklist: unknown) {
   await requireAuth();
   const db = await createUserClient();
-  const { error } = await db.from('projetos').update({ checklist_preparacao: newChecklist }).eq('id', projectId);
+  const { error } = await db.from('projeto_entregaveis').update({ checklist_preparacao: newChecklist }).eq('id', entregavelId);
   if (error) throw new Error(error.message);
   revalidatePath('/producao');
   return true;
@@ -521,16 +570,14 @@ export async function updateProjetoChecklist(projectId: string, newChecklist: un
 
 export async function updateProjetoStatusProducao(id: string, novoStatus: string) {
   await requireAuth();
-  // Impede mover para 'Entregue' via drag/drop manual — só pagamento confirmado pode fazer isso
   if (novoStatus === 'Entregue') {
     throw new Error('Não é possível mover para "Entregue" manualmente. O projeto é movido automaticamente após confirmação do pagamento final.');
   }
-  // Impede mover para 'Aprovado' via drag — use adminAprovarProjeto
   if (novoStatus === 'Aprovado') {
     throw new Error('Use o botão "Aprovar" no card para mover para "Aprovado". O cliente precisa ter aprovado primeiro.');
   }
   const db = await createUserClient();
-  const { error } = await db.from('projetos').update({ status_producao: novoStatus }).eq('id', id);
+  const { error } = await db.from('projeto_entregaveis').update({ status_producao: novoStatus }).eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/producao');
   revalidatePath('/admin/projetos');
@@ -540,7 +587,7 @@ export async function updateProjetoStatusProducao(id: string, novoStatus: string
 export async function updateProjetoLinkArquivos(id: string, link: string) {
   await requireAuth();
   const db = await createUserClient();
-  const { error } = await db.from('projetos').update({ link_arquivos: link }).eq('id', id);
+  const { error } = await db.from('projeto_entregaveis').update({ link_arquivos: link }).eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/producao');
   return true;
@@ -558,11 +605,8 @@ export async function confirmarEntregaProjeto(id: string, entregaPaga: boolean) 
 export async function desfazerEntregaProjeto(id: string, novoStatusProducao: string) {
   await requireAuth();
   const db = await createUserClient();
-  const { error } = await db.from('projetos').update({
+  const { error } = await db.from('projeto_entregaveis').update({
     status_producao: novoStatusProducao,
-    entrega_paga: false,
-    data_aprovacao: null,
-    cliente_aprovado: false,
   }).eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/producao');

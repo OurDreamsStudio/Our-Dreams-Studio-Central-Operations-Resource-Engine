@@ -29,6 +29,17 @@ export async function getPublicProject(token: string) {
         nome_artistico,
         nome_pessoal,
         anotacoes
+      ),
+      projeto_entregaveis (
+        id,
+        nome_servico,
+        valor,
+        status_producao,
+        link_arquivos,
+        prazo_entrega,
+        checklist_preparacao,
+        contador_revisoes,
+        revisoes_disponiveis
       )
     `)
     .eq('public_token', token)
@@ -63,6 +74,17 @@ export async function getPublicProject(token: string) {
             nome_artistico,
             nome_pessoal,
             anotacoes
+          ),
+          projeto_entregaveis (
+            id,
+            nome_servico,
+            valor,
+            status_producao,
+            link_arquivos,
+            prazo_entrega,
+            checklist_preparacao,
+            contador_revisoes,
+            revisoes_disponiveis
           )
         `)
         .eq('id', token)

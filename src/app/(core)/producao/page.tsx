@@ -89,14 +89,14 @@ export default function ProducaoPage() {
     }
     fetchData();
 
-    // Inscreve no canal do Supabase Realtime para a tabela 'projetos'
+    // Inscreve no canal do Supabase Realtime para a tabela 'projeto_entregaveis'
     const channel = supabase
       .channel('realtime-producao')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'projetos' },
+        { event: '*', schema: 'public', table: 'projeto_entregaveis' },
         (payload) => {
-          console.log('[Realtime] Mudança detectada na tabela projetos:', payload);
+          console.log('[Realtime] Mudança detectada na tabela projeto_entregaveis:', payload);
           if (payload.eventType === 'INSERT') {
             fetchData(); // Refetch to get joined relations like clientes
           } else if (payload.eventType === 'UPDATE') {
@@ -353,7 +353,8 @@ export default function ProducaoPage() {
                 {/* Cards */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
                   {cards.map((proj) => {
-                    const cliente = proj.clientes;
+                    const projetoParent = proj.projetos || {};
+                    const cliente = projetoParent.clientes;
                     const isDragging = dragging === proj.id;
                     const av = cliente?.nome_artistico || cliente?.nome_pessoal || '?';
                     const isLate = isDateLateOrToday(proj.prazo_entrega);
@@ -386,27 +387,27 @@ export default function ProducaoPage() {
                             {av.charAt(0).toUpperCase()}
                           </div>
                           <div style={{ minWidth: 0, flex: 1 }}>
-                            <Link href={`/clientes/${proj.cliente_id}`} style={{ textDecoration: 'none' }}>
+                            <Link href={`/clientes/${projetoParent.cliente_id}`} style={{ textDecoration: 'none' }}>
                               <div style={{ fontWeight: 700, fontSize: isMobile ? 12 : 15, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {av}
+                                {av} - {proj.nome_servico}
                               </div>
                             </Link>
                           </div>
 
                           {/* Copy Link Action */}
-                          {proj.public_token && (
+                          {projetoParent.public_token && (
                             <button
-                              onClick={() => handleCopyLink(proj.public_token, proj.id)}
+                              onClick={() => handleCopyLink(projetoParent.public_token, projetoParent.id)}
                               style={{
-                                background: copiedId === proj.id ? 'rgba(34,197,94,0.1)' : 'transparent',
-                                border: `1px solid ${copiedId === proj.id ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`,
+                                background: copiedId === projetoParent.id ? 'rgba(34,197,94,0.1)' : 'transparent',
+                                border: `1px solid ${copiedId === projetoParent.id ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`,
                                 borderRadius: 8, padding: 6, cursor: 'pointer',
-                                color: copiedId === proj.id ? '#22c55e' : 'var(--text-muted)',
+                                color: copiedId === projetoParent.id ? '#22c55e' : 'var(--text-muted)',
                                 transition: 'all 0.2s', marginLeft: 'auto'
                               }}
                               title="Copiar Link de Acompanhamento"
                             >
-                              {copiedId === proj.id ? <Check size={14} /> : <LinkIcon size={14} />}
+                              {copiedId === projetoParent.id ? <Check size={14} /> : <LinkIcon size={14} />}
                             </button>
                           )}
                           
@@ -420,7 +421,7 @@ export default function ProducaoPage() {
                               color: 'var(--text-muted)',
                               transition: 'all 0.2s', marginLeft: 6
                             }}
-                            title="Configurações do Projeto"
+                            title="Configurações do Entregável"
                           >
                             <Settings size={14} />
                           </button>
@@ -436,24 +437,24 @@ export default function ProducaoPage() {
                         }}>
                           <Disc size={14} className="text-accent" style={{ marginTop: 2, flexShrink: 0 }} /> 
                           <span style={{ fontWeight: 500 }}>
-                            {proj.servicos_fechados || proj.tipo_servico || 'Serviço não especificado'}
+                            {proj.nome_servico || 'Entregável não especificado'}
                           </span>
                         </div>
 
                         {/* Terceirizados (if any) */}
-                        {proj.terceirizados && (
+                        {projetoParent.terceirizados && (
                           <div style={{
                             fontSize: 11, color: 'var(--text-muted)',
                             marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6
                           }}>
-                            <Users size={12} /> {proj.terceirizados}
+                            <Users size={12} /> {projetoParent.terceirizados}
                           </div>
                         )}
 
                         {/* Badges de Aprovação Dupla */}
                         {proj.status_producao === 'Revisão' && (
                           <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {proj.cliente_aprovado ? (
+                            {projetoParent.cliente_aprovado ? (
                               <div style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
                                 background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)',
@@ -472,7 +473,7 @@ export default function ProducaoPage() {
                             )}
 
                             {/* Botão de aprovação pelo admin se o cliente já aprovou */}
-                            {proj.cliente_aprovado && (
+                            {projetoParent.cliente_aprovado && (
                               <button
                                 onClick={() => handleAdminAprovar(proj.id)}
                                 disabled={adminApprovingId === proj.id}
@@ -554,7 +555,7 @@ export default function ProducaoPage() {
                             </span>
                           )}
                           
-                          {proj.entrega_paga && col.id === 'Entregue' && (
+                          {projetoParent.entrega_paga && col.id === 'Entregue' && (
                             <span style={{ fontSize: 11, color: '#22c55e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                               <CheckCircle size={13} /> Pago
                             </span>
@@ -716,10 +717,10 @@ export default function ProducaoPage() {
               <RotateCcw size={24} />
             </div>
 
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Reverter Projeto</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Reverter Entregável</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 20, lineHeight: 1.5 }}>
-              Você está desfazendo a entrega/aprovação de <strong>{undoingProject.clientes?.nome_artistico || undoingProject.clientes?.nome_pessoal || 'Projeto'}</strong>.<br/>
-              Para qual etapa da produção o projeto deve voltar?
+              Você está desfazendo a entrega/aprovação de <strong>{undoingProject.projetos?.clientes?.nome_artistico || undoingProject.projetos?.clientes?.nome_pessoal || 'Projeto'} - {undoingProject.nome_servico}</strong>.<br/>
+              Para qual etapa da produção o entregável deve voltar?
             </p>
 
             <form onSubmit={handleConfirmUndo} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

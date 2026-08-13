@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Users, TrendingUp, Briefcase, DollarSign, Activity, FileText, Clock } from 'lucide-react';
 import { supabaseServer } from '@/lib/supabaseServer';
 import { requireAuth } from '@/lib/requireAuth';
+import { QuickCreateProject } from '@/components/QuickCreateProject';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,13 +110,16 @@ export default async function DashboardPage() {
   return (
     <div style={{ padding: 'var(--page-padding-y, 32px) var(--page-padding-x, 36px)', maxWidth: 1200 }} className="fade-up">
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
-          <span className="gradient-text">Dashboard</span>
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-          Visão geral do funil de clientes • Our Dreams Studio
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+        <div>
+          <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
+            <span className="gradient-text">Dashboard</span>
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+            Visão geral do funil de clientes • Our Dreams Studio
+          </p>
+        </div>
+        <QuickCreateProject />
       </div>
 
       {/* Stats */}

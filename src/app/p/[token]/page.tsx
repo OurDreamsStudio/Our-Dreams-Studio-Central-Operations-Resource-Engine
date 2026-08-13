@@ -84,6 +84,8 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
   const [refUrl, setRefUrl] = useState('');
   const [isSubmittingRef, setIsSubmittingRef] = useState(false);
 
+  const [activeEntregavelId, setActiveEntregavelId] = useState<string>('');
+
   useEffect(() => {
     async function fetchProject() {
       if (!token) return;
@@ -91,6 +93,9 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
       try {
         const data = await getPublicProject(token);
         setProjeto(data);
+        if (data?.projeto_entregaveis?.length > 0) {
+          setActiveEntregavelId(data.projeto_entregaveis[0].id);
+        }
       } catch (err: any) {
         console.error('Error fetching public project:', err);
         setError(true);
@@ -102,11 +107,13 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
     fetchProject();
   }, [token]);
 
+  const activeEntregavel = projeto?.projeto_entregaveis?.find((e: any) => e.id === activeEntregavelId) || projeto?.projeto_entregaveis?.[0];
+
   const handleAprovar = () => {
-    if (!token) return;
+    if (!token || !activeEntregavel) return;
     startTransition(async () => {
       try {
-        await aprovarProjeto(token as string);
+        await aprovarProjeto(activeEntregavel.id, token as string);
         const data = await getPublicProject(token);
         setProjeto((prev: any) => prev ? ({ ...prev, ...data } as ProjetoComCliente) : null);
         
@@ -163,7 +170,7 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
 
   const handleSolicitarRevisao = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token || !projeto || pontosRevisao.length === 0) return;
+    if (!token || !projeto || !activeEntregavel || pontosRevisao.length === 0) return;
     
     const feedback: FeedbackRevisao = {
       versao: 'estruturado',
@@ -173,8 +180,9 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
 
     startTransition(async () => {
       try {
-        const updated = await registrarSolicitacaoRevisao(projeto.id, feedback, projeto.historico_revisoes || []);
-        setProjeto((prev: any) => prev ? ({ ...prev, ...updated } as ProjetoComCliente) : null);
+        const updated = await registrarSolicitacaoRevisao(activeEntregavel.id, feedback, activeEntregavel.historico_revisoes || []);
+        const data = await getPublicProject(token);
+        setProjeto(data);
         setShowRevisionModal(false);
         setPontosRevisao([]);
         setObservacaoGeral('');
@@ -237,21 +245,21 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
     );
   }
 
-  const currentStatus = projeto.status_producao || 'Definição de Escopo';
+  const currentStatus = activeEntregavel?.status_producao || 'Definição de Escopo';
   const currentIndex = ETAPAS_PRODUCAO.indexOf(currentStatus as typeof ETAPAS_PRODUCAO[number]);
   const isVaultUnlocked = currentStatus === 'Revisão' || currentStatus === 'Aprovado' || currentStatus === 'Entregue';
   const isLastStage = currentIndex === ETAPAS_PRODUCAO.length - 1;
   const clienteNome = projeto.clientes?.nome_artistico || projeto.clientes?.nome_pessoal || 'Artista';
-  const clienteAprovou = projeto.cliente_aprovado === true;
+  const clienteAprovou = activeEntregavel?.cliente_aprovado === true;
   const ambosAprovaram = currentStatus === 'Aprovado';
 
 
   // Revision counters
-  const disponiveis = Number(projeto.revisoes_disponiveis ?? MAX_REVISOES);
-  const usadas = Number(projeto.contador_revisoes ?? 0);
+  const disponiveis = Number(activeEntregavel?.revisoes_disponiveis ?? MAX_REVISOES);
+  const usadas = Number(activeEntregavel?.contador_revisoes ?? 0);
   const revisaoEsgotada = disponiveis <= 0;
   const ultimaRevisao = disponiveis === 1;
-  const historicoRevisoes: Array<{ data: string; motivo: any; etapa: string }> = projeto.historico_revisoes || [];
+  const historicoRevisoes: Array<{ data: string; motivo: any; etapa: string }> = activeEntregavel?.historico_revisoes || [];
 
   return (
     <div style={{ padding: 'clamp(20px, 4vw, 40px) clamp(16px, 4vw, 20px)', maxWidth: 1000, margin: '0 auto' }} className="fade-up">
@@ -274,6 +282,35 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
           Siga cada etapa da evolução do seu projeto em tempo real.
         </p>
       </div>
+
+      {/* Entregaveis Selector */}
+      {projeto.projeto_entregaveis && projeto.projeto_entregaveis.length > 1 && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 30, overflowX: 'auto', paddingBottom: 10 }}>
+          {projeto.projeto_entregaveis.map((e: any) => (
+            <button
+              key={e.id}
+              onClick={() => setActiveEntregavelId(e.id)}
+              style={{
+                padding: '12px 20px',
+                borderRadius: 12,
+                background: activeEntregavelId === e.id ? 'var(--accent)' : 'var(--bg-surface)',
+                color: activeEntregavelId === e.id ? '#fff' : 'var(--text-secondary)',
+                border: `1px solid ${activeEntregavelId === e.id ? 'var(--accent)' : 'var(--border)'}`,
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: 14,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Music size={16} />
+              {e.nome_servico}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="public-layout-grid">
         {/* Main Content: Stepper */}
@@ -585,16 +622,16 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
               <FileText size={40} style={{ color: isVaultUnlocked ? 'var(--accent-light)' : 'var(--border)', marginBottom: 16 }} />
               <p style={{ fontSize: 13, color: isVaultUnlocked ? 'var(--text-primary)' : 'var(--text-muted)', lineHeight: 1.5, fontWeight: isVaultUnlocked ? 500 : 400 }}>
                 {isVaultUnlocked 
-                  ? (projeto.link_arquivos 
+                  ? (activeEntregavel?.link_arquivos 
                       ? "Cofre Desbloqueado! Seus arquivos de revisão/entrega estão prontos para acesso."
                       : "Cofre Desbloqueado! O produtor está preparando o link dos seus arquivos.")
                   : "Os arquivos finalizados e guias aparecerão aqui automaticamente na etapa de Revisão."
                 }
               </p>
             </div>
-            {isVaultUnlocked && projeto.link_arquivos ? (
+            {isVaultUnlocked && activeEntregavel?.link_arquivos ? (
               <a 
-                href={projeto.link_arquivos} 
+                href={activeEntregavel.link_arquivos} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 style={{ textDecoration: 'none' }}
@@ -632,7 +669,7 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
           </div>
 
           {/* APPROVAL & REVISION SECTION */}
-          {(projeto.status_producao === 'Revisão' || projeto.status_producao === 'Aprovado' || clienteAprovou) && (
+          {(activeEntregavel?.status_producao === 'Revisão' || activeEntregavel?.status_producao === 'Aprovado' || clienteAprovou) && (
             <div className="glass" style={{ 
               padding: '24px', 
               border: ambosAprovaram ? '1px solid rgba(6,182,212,0.4)' : clienteAprovou ? '1px solid rgba(34,197,94,0.4)' : '1px solid var(--border)',
@@ -651,9 +688,9 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
                     ✅ O produtor confirmou que está tudo certo.<br/>
                     Assim que o pagamento final for confirmado, os arquivos serão liberados.
                   </div>
-                  {projeto.data_aprovacao && (
+                  {activeEntregavel?.data_aprovacao && (
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      Aprovado em {new Date(projeto.data_aprovacao).toLocaleString('pt-BR', {
+                      Aprovado em {new Date(activeEntregavel.data_aprovacao).toLocaleString('pt-BR', {
                         day: '2-digit', month: '2-digit', year: 'numeric',
                         hour: '2-digit', minute: '2-digit'
                       }).replace(',', ' às')}
@@ -672,9 +709,9 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
                   <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                     Sua aprovação foi registrada. Aguardando confirmação final do produtor.
                   </div>
-                  {projeto.data_aprovacao && (
+                  {activeEntregavel?.data_aprovacao && (
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
-                      ✅ Aprovado em {new Date(projeto.data_aprovacao).toLocaleString('pt-BR', {
+                      ✅ Aprovado em {new Date(activeEntregavel.data_aprovacao).toLocaleString('pt-BR', {
                         day: '2-digit', month: '2-digit', year: 'numeric',
                         hour: '2-digit', minute: '2-digit'
                       }).replace(',', ' às')}
@@ -726,10 +763,10 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
 
           {/* Revision Info (Internal Alert Equivalent for Client) */}
           {(() => {
-            if (!projeto.motivo_revisao || projeto.data_aprovacao) return null;
-            let displayMotivo = projeto.motivo_revisao;
+            if (!activeEntregavel?.motivo_revisao || activeEntregavel?.data_aprovacao) return null;
+            let displayMotivo = activeEntregavel.motivo_revisao;
             try {
-              const parsed = JSON.parse(projeto.motivo_revisao);
+              const parsed = JSON.parse(activeEntregavel.motivo_revisao);
               if (parsed && parsed.versao === 'estruturado' && parsed.resumo) {
                 displayMotivo = parsed.resumo;
               }

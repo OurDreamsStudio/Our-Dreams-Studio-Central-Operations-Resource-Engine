@@ -2,6 +2,7 @@ import { Database } from './database';
 
 export type Cliente = Database['public']['Tables']['clientes']['Row'];
 export type Projeto = Database['public']['Tables']['projetos']['Row'];
+export type ProjetoEntregavel = Database['public']['Tables']['projeto_entregaveis']['Row'];
 export type Terceirizado = Database['public']['Tables']['terceirizados']['Row'];
 export type TarefaTerceirizado = Database['public']['Tables']['tarefas_terceirizados']['Row'];
 export type Notificacao = Database['public']['Tables']['notificacoes']['Row'];
@@ -11,6 +12,11 @@ export type AtivoHardware = Database['public']['Tables']['ativos_hardware']['Row
 // Tipos com Relações (para quando fazemos select('*, clientes(...)'))
 export type ProjetoComCliente = Projeto & {
   clientes: Pick<Cliente, 'nome_artistico' | 'nome_pessoal'> | null;
+  projeto_entregaveis?: ProjetoEntregavel[];
+};
+
+export type EntregavelComProjetoECliente = ProjetoEntregavel & {
+  projetos: ProjetoComCliente | null;
 };
 
 export type TarefaComProjetoETerceiro = TarefaTerceirizado & {

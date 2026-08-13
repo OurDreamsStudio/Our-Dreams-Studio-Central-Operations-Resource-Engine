@@ -293,6 +293,55 @@ export type Database = {
           },
         ]
       }
+      projeto_entregaveis: {
+        Row: {
+          id: string
+          projeto_id: string
+          nome_servico: string
+          valor: number | null
+          status_producao: string | null
+          link_arquivos: string | null
+          prazo_entrega: string | null
+          contador_revisoes: number | null
+          historico_revisoes: Json | null
+          motivo_revisao: string | null
+          checklist_preparacao: Json | null
+          valor?: number | null
+          status_producao?: string | null
+          link_arquivos?: string | null
+          prazo_entrega?: string | null
+          contador_revisoes?: number | null
+          historico_revisoes?: Json | null
+          motivo_revisao?: string | null
+          checklist_preparacao?: Json | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          projeto_id?: string
+          nome_servico?: string
+          valor?: number | null
+          status_producao?: string | null
+          link_arquivos?: string | null
+          prazo_entrega?: string | null
+          contador_revisoes?: number | null
+          historico_revisoes?: Json | null
+          motivo_revisao?: string | null
+          checklist_preparacao?: Json | null
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projeto_entregaveis_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       tarefas_terceirizados: {
         Row: {
           created_at: string | null
