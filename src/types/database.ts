@@ -306,6 +306,16 @@ export type Database = {
           historico_revisoes: Json | null
           motivo_revisao: string | null
           checklist_preparacao: Json | null
+          cliente_aprovado: boolean | null
+          data_aprovacao: string | null
+          revisoes_disponiveis: number | null
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          projeto_id: string
+          nome_servico: string
           valor?: number | null
           status_producao?: string | null
           link_arquivos?: string | null
@@ -314,6 +324,9 @@ export type Database = {
           historico_revisoes?: Json | null
           motivo_revisao?: string | null
           checklist_preparacao?: Json | null
+          cliente_aprovado?: boolean | null
+          data_aprovacao?: string | null
+          revisoes_disponiveis?: number | null
           created_at?: string
           updated_at?: string | null
         }
@@ -329,6 +342,9 @@ export type Database = {
           historico_revisoes?: Json | null
           motivo_revisao?: string | null
           checklist_preparacao?: Json | null
+          cliente_aprovado?: boolean | null
+          data_aprovacao?: string | null
+          revisoes_disponiveis?: number | null
           created_at?: string
           updated_at?: string | null
         }
