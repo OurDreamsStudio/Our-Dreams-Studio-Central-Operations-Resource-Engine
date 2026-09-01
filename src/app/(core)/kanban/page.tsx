@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Link from 'next/link';
-import { Disc, DollarSign, X, Check, Tag, AlertCircle, Link as LinkIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Disc, DollarSign, X, Check, Tag, AlertCircle, Link as LinkIcon, ChevronLeft, ChevronRight, Plus, Music2 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useGrabScroll } from '@/hooks/useGrabScroll';
 import { SERVICOS, ETAPAS_PRODUCAO, MIX_MASTER_CHECKLIST, ETAPAS_VENDAS, FunilStatus, getStatusTheme } from '@/constants/workflow';
@@ -58,12 +58,10 @@ export default function KanbanPage() {
   const [submitting, setSubmitting] = useState(false);
   const [modalData, setModalData] = useState({
     nome: '',
-    servicosSelecionados: [] as string[],
-    valor_fechado: '',
+    entregaveis: [{ nome: '', valor: 0 }] as { nome: string; valor: number }[],
     sinal_pago: false,
     prazo_entrega: '',
     terceirizados: '',
-    servicosPrecos: {} as Record<string, number>
   });
 
   useEffect(() => {
@@ -183,37 +181,44 @@ export default function KanbanPage() {
     setClosingProject(null);
     setModalData({
       nome: '',
-      servicosSelecionados: [],
-      valor_fechado: '',
+      entregaveis: [{ nome: '', valor: 0 }],
       sinal_pago: false,
       prazo_entrega: '',
       terceirizados: '',
-      servicosPrecos: {}
     });
   };
 
   const handleSubmitClosing = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!closingProject) return;
+    if (modalData.entregaveis.length === 0 || modalData.entregaveis.some(ent => !ent.nome.trim())) {
+      alert('Preencha o nome de todos os entregáveis.');
+      return;
+    }
     setSubmitting(true);
 
-    const servicosStr = modalData.servicosSelecionados.join(', ');
-    const checklist = modalData.servicosSelecionados.includes('Mixagem e Masterização') 
-      ? MIX_MASTER_CHECKLIST.map(item => ({ item, done: false })) 
+    const servicosNomes = modalData.entregaveis.map(ent => ent.nome).join(', ');
+    const valorTotal = modalData.entregaveis.reduce((acc, ent) => acc + Number(ent.valor || 0), 0);
+    const valoresServicos: Record<string, number> = {};
+    modalData.entregaveis.forEach(ent => {
+      valoresServicos[ent.nome] = Number(ent.valor || 0);
+    });
+
+    const checklist = modalData.entregaveis.some(ent => ent.nome.toLowerCase().includes('mix'))
+      ? MIX_MASTER_CHECKLIST.map(item => ({ item, done: false }))
       : null;
 
-    const valorTotal = Object.values(modalData.servicosPrecos).reduce((acc, v) => acc + v, 0);
-
     const projectData = {
-      nome: modalData.nome.trim() || `Projeto - ${modalData.servicosSelecionados[0] || 'Novo'}`,
+      nome: modalData.nome.trim() || `Projeto - ${modalData.entregaveis[0]?.nome || 'Novo'}`,
       status_producao: ETAPAS_PRODUCAO[0], // Definição de Escopo
-      servicos_fechados: servicosStr,
+      servicos_fechados: servicosNomes,
       checklist_preparacao: checklist,
       valor_fechado: valorTotal,
-      valores_servicos: modalData.servicosPrecos,
+      valores_servicos: valoresServicos,
+      entregaveis: modalData.entregaveis,
       sinal_pago: modalData.sinal_pago,
       prazo_entrega: modalData.prazo_entrega,
-      terceirizados: modalData.terceirizados
+      terceirizados: modalData.terceirizados,
     };
 
     try {
@@ -222,7 +227,6 @@ export default function KanbanPage() {
       handleCloseModal();
       router.refresh();
     } catch (err: any) {
-
       console.error('Failed to create project:', err);
       alert('Erro ao criar projeto: ' + err.message);
     } finally {
@@ -513,99 +517,75 @@ export default function KanbanPage() {
                 />
               </div>
 
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 12, color: 'var(--text-primary)' }}>
-                  Serviços (Múltipla Escolha)
-                </label>
-                <div className="form-grid-2" style={{ gap: 8 }}>
-                  {SERVICOS.map((servico) => (
-                    <label key={servico} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '10px 12px', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 8 }}>
+              {/* Entregáveis livres */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Entregáveis (Músicas / Serviços) *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setModalData(m => ({ ...m, entregaveis: [...m.entregaveis, { nome: '', valor: 0 }] }))}
+                    style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(124,58,237,0.12)', color: 'var(--accent-light)', border: '1px solid rgba(124,58,237,0.3)', padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 700 }}
+                  >
+                    <Plus size={13} /> Adicionar
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {modalData.entregaveis.map((ent, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'var(--bg-base)', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                      <Music2 size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                       <input
-                        type="checkbox"
-                        checked={modalData.servicosSelecionados.includes(servico)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setModalData(m => ({ ...m, servicosSelecionados: [...m.servicosSelecionados, servico] }));
-                          } else {
-                            setModalData(m => {
-                              const newPrecos = { ...m.servicosPrecos };
-                              delete newPrecos[servico];
-                              return {
-                                ...m,
-                                servicosSelecionados: m.servicosSelecionados.filter(s => s !== servico),
-                                servicosPrecos: newPrecos
-                              };
-                            });
-                          }
+                        required
+                        type="text"
+                        placeholder="Ex: Mixagem Música X..."
+                        value={ent.nome}
+                        onChange={e => {
+                          const updated = [...modalData.entregaveis];
+                          updated[idx] = { ...updated[idx], nome: e.target.value };
+                          setModalData(m => ({ ...m, entregaveis: updated }));
                         }}
-                        style={{ width: 16, height: 16, accentColor: 'var(--accent)' }}
+                        style={{ flex: 2, padding: '8px 10px', borderRadius: 6, background: 'var(--bg-surface)', border: '1px solid var(--border)', color: '#fff', outline: 'none', fontSize: 13, minWidth: 0 }}
                       />
-                      <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{servico}</span>
-                    </label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>R$</span>
+                        <input
+                          type="number" min="0" step="0.01"
+                          value={ent.valor}
+                          onChange={e => {
+                            const updated = [...modalData.entregaveis];
+                            updated[idx] = { ...updated[idx], valor: Number(e.target.value) };
+                            setModalData(m => ({ ...m, entregaveis: updated }));
+                          }}
+                          style={{ width: 90, padding: '8px 8px', borderRadius: 6, background: 'var(--bg-surface)', border: '1px solid var(--border)', color: '#fff', outline: 'none', fontSize: 13, textAlign: 'right' }}
+                        />
+                      </div>
+                      {modalData.entregaveis.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setModalData(m => ({ ...m, entregaveis: m.entregaveis.filter((_, i) => i !== idx) }))}
+                          style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
                   ))}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
+                  Total:&nbsp;<strong style={{ color: '#22c55e' }}>R$ {modalData.entregaveis.reduce((a, e) => a + Number(e.valor), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
                 </div>
               </div>
 
-              {modalData.servicosSelecionados.length > 0 && (
-                <div style={{ marginBottom: 10 }}>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 12, color: 'var(--text-primary)' }}>
-                    Preços por Serviço (R$)
-                  </label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {modalData.servicosSelecionados.map(servico => (
-                      <div key={servico} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <span style={{ flex: 1, fontSize: 13, color: 'var(--text-secondary)' }}>{servico}</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={modalData.servicosPrecos[servico] || ''}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            setModalData(m => ({
-                              ...m,
-                              servicosPrecos: { ...m.servicosPrecos, [servico]: val }
-                            }));
-                          }}
-                          style={{
-                            width: 100, padding: '8px 12px', borderRadius: 8,
-                            background: 'var(--bg-base)', border: '1px solid var(--border)',
-                            color: '#fff', outline: 'none', fontSize: 13
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div className="form-grid-2" style={{ gap: 12 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>
-                    Valor Total (Soma Automática)
-                  </label>
-                  <div style={{
-                    padding: '12px 16px', borderRadius: 8,
-                    background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)',
-                    color: 'var(--green)', fontWeight: 700, fontSize: 16
-                  }}>
-                    R$ {Object.values(modalData.servicosPrecos).reduce((acc, v) => acc + v, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </div>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>
-                    Prazo de Entrega
-                  </label>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>Prazo de Entrega</label>
                   <input
                     required
                     type="date"
                     value={modalData.prazo_entrega}
                     onChange={e => setModalData({...modalData, prazo_entrega: e.target.value})}
-                    style={{
-                      width: '100%', padding: '12px 16px', borderRadius: 8,
-                      background: 'var(--bg-base)', border: '1px solid var(--border)',
-                      color: '#fff', outline: 'none'
-                    }}
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>

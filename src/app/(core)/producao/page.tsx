@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Link from 'next/link';
@@ -76,53 +76,107 @@ export default function ProducaoPage() {
   const [linkInput, setLinkInput] = useState('');
   const [submittingSettings, setSubmittingSettings] = useState(false);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const pData = await getProjetosProducao();
-        setProjetos(pData || []);
-      } catch (err: any) {
-        console.error('Error fetching projetos de producao:', err);
-      } finally {
-        setLoading(false);
-      }
+  // fetchData como ref para evitar stale closure nos callbacks do Realtime
+  const fetchData = useCallback(async () => {
+    try {
+      const pData = await getProjetosProducao();
+      setProjetos(pData || []);
+    } catch (err: any) {
+      console.error('Error fetching projetos de producao:', err);
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  const fetchDataRef = useRef(fetchData);
+  useEffect(() => { fetchDataRef.current = fetchData; }, [fetchData]);
+
+  useEffect(() => {
     fetchData();
 
-    // Inscreve no canal do Supabase Realtime para a tabela 'projeto_entregaveis'
+    // Canal único com listeners para TODAS as tabelas usadas pelo Kanban de Produção
     const channel = supabase
       .channel('realtime-producao')
+
+      // ── Tabela principal: projeto_entregaveis ──────────────────────────────
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'projeto_entregaveis' },
         (payload) => {
-          console.log('[Realtime] Mudança detectada na tabela projeto_entregaveis:', payload);
+          console.log('[Realtime] projeto_entregaveis:', payload.eventType, payload);
           if (payload.eventType === 'INSERT') {
-            fetchData(); // Refetch to get joined relations like clientes
+            fetchDataRef.current(); // refetch para obter joins (projetos, clientes)
           } else if (payload.eventType === 'UPDATE') {
-            const updatedProject = payload.new;
+            const updated = payload.new;
             setProjetos((prev) => {
-              const exists = prev.some((p) => p.id === updatedProject.id);
+              const exists = prev.some((p) => p.id === updated.id);
               if (exists) {
-                return prev.map((p) => (p.id === updatedProject.id ? { ...p, ...updatedProject } : p));
+                return prev.map((p) =>
+                  p.id === updated.id ? { ...p, ...updated } : p
+                );
               } else {
-                fetchData(); // Refetch if it's a new project entering the view
+                fetchDataRef.current(); // novo entregável entrando na view
                 return prev;
               }
             });
           } else if (payload.eventType === 'DELETE') {
-            const oldProject = payload.old;
-            setProjetos((prev) => prev.filter((p) => p.id !== oldProject.id));
+            setProjetos((prev) => prev.filter((p) => p.id !== payload.old.id));
           }
         }
       )
+
+      // ── Tabela relacionada: projetos ───────────────────────────────────────
+      // Captura mudanças em: cliente_aprovado, entrega_paga, public_token, etc.
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'projetos' },
+        (payload) => {
+          const updatedProjeto = payload.new;
+          console.log('[Realtime] projetos UPDATE:', updatedProjeto);
+          setProjetos((prev) =>
+            prev.map((p) => {
+              if (p.projetos?.id === updatedProjeto.id) {
+                return { ...p, projetos: { ...p.projetos, ...updatedProjeto } };
+              }
+              return p;
+            })
+          );
+        }
+      )
+
+      // ── Tabela relacionada: clientes ───────────────────────────────────────
+      // Captura mudanças em: nome_artistico, nome_pessoal, etc.
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'clientes' },
+        (payload) => {
+          const updatedCliente = payload.new;
+          console.log('[Realtime] clientes UPDATE:', updatedCliente);
+          setProjetos((prev) =>
+            prev.map((p) => {
+              if (p.projetos?.clientes?.id === updatedCliente.id) {
+                return {
+                  ...p,
+                  projetos: {
+                    ...p.projetos,
+                    clientes: { ...p.projetos.clientes, ...updatedCliente },
+                  },
+                };
+              }
+              return p;
+            })
+          );
+        }
+      )
+
       .subscribe((status) => {
-        console.log('[Realtime] Status da conexão:', status);
+        console.log('[Realtime] Status da conexão (producao):', status);
       });
 
     return () => {
       supabase.removeChannel(channel);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleToggleChecklist = async (projectId: string, itemIndex: number, newValue: boolean) => {

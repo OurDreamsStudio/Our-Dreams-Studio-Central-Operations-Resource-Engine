@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { Users, TrendingUp, Briefcase, DollarSign, Activity, FileText, Clock } from 'lucide-react';
 import { supabaseServer } from '@/lib/supabaseServer';
 import { requireAuth } from '@/lib/requireAuth';
-import { QuickCreateProject } from '@/components/QuickCreateProject';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,7 +118,6 @@ export default async function DashboardPage() {
             Visão geral do funil de clientes • Our Dreams Studio
           </p>
         </div>
-        <QuickCreateProject />
       </div>
 
       {/* Stats */}

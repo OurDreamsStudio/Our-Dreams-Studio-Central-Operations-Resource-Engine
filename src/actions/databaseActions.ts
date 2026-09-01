@@ -512,8 +512,19 @@ export async function fecharProjetoNoKanban(clienteId: string, projectData: Reco
 
   if (projError) throw new Error(projError.message);
 
-  // Sync projeto_entregaveis if valores_servicos exists
-  if (projectData.valores_servicos && typeof projectData.valores_servicos === 'object' && Object.keys(projectData.valores_servicos).length > 0) {
+  // Sync projeto_entregaveis if entregaveis array or valores_servicos exists
+  if (Array.isArray(projectData.entregaveis) && projectData.entregaveis.length > 0) {
+    const entregaveis = projectData.entregaveis.map((item: any) => ({
+      projeto_id: proj.id,
+      nome_servico: item.nome || item.nome_servico || 'Serviço',
+      valor: Number(item.valor) || 0,
+      status_producao: projectData.status_producao || 'Definição de Escopo',
+    }));
+    const { error: entregaveisError } = await db.from('projeto_entregaveis').insert(entregaveis);
+    if (entregaveisError) {
+      console.error('Erro ao criar entregaveis:', entregaveisError.message);
+    }
+  } else if (projectData.valores_servicos && typeof projectData.valores_servicos === 'object' && Object.keys(projectData.valores_servicos).length > 0) {
     const entregaveis = Object.entries(projectData.valores_servicos).map(([nome, valor]) => ({
       projeto_id: proj.id,
       nome_servico: nome,
