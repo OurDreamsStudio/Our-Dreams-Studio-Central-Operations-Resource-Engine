@@ -2,15 +2,16 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 
 import Link from 'next/link';
-import { Disc, DollarSign, X, Check, Tag, AlertCircle, Link as LinkIcon, ChevronLeft, ChevronRight, Plus, Music2 } from 'lucide-react';
+import { Disc, DollarSign, X, Check, Tag, AlertCircle, Link as LinkIcon, ChevronLeft, ChevronRight, Plus, Music2, Search, UserCheck, UserPlus, Loader2 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useGrabScroll } from '@/hooks/useGrabScroll';
 import { SERVICOS, ETAPAS_PRODUCAO, MIX_MASTER_CHECKLIST, ETAPAS_VENDAS, FunilStatus, getStatusTheme } from '@/constants/workflow';
-import { getClientesKanban, moverClienteFunil, fecharProjetoNoKanban } from '@/actions/databaseActions'; // [SEC REFACTOR]
+import { getClientesKanban, moverClienteFunil, fecharProjetoNoKanban, buscarClientesParaKanban, criarLeadOuReabrirNoKanban } from '@/actions/databaseActions'; // [SEC REFACTOR]
 import { supabase } from '@/lib/supabase';
 
 const COLUMNS: { id: FunilStatus; label: string }[] = [
@@ -53,7 +54,7 @@ export default function KanbanPage() {
   const [overCol, setOverCol] = useState<FunilStatus | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Modal State
+  // Closing Project Modal State
   const [closingProject, setClosingProject] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [modalData, setModalData] = useState({
@@ -63,6 +64,68 @@ export default function KanbanPage() {
     prazo_entrega: '',
     terceirizados: '',
   });
+
+  // New Lead / Card Modal State
+  const [showNewCardModal, setShowNewCardModal] = useState(false);
+  const [newCardMode, setNewCardMode] = useState<'search' | 'new'>('search');
+  const [newCardSearch, setNewCardSearch] = useState('');
+  const [newCardSuggestions, setNewCardSuggestions] = useState<any[]>([]);
+  const [newCardSelectedClient, setNewCardSelectedClient] = useState<any | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const [isCreatingCard, setIsCreatingCard] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  const [newCardData, setNewCardData] = useState({
+    nome_artistico: '',
+    nome_pessoal: '',
+    telefone: '',
+    instagram: '',
+    email: '',
+    status_funil: 'Inbound WhatsApp' as FunilStatus,
+    diag_servico_interesse: '',
+    nome_projeto: '',
+    prazo_entrega: '',
+    sinal_pago: false,
+    terceirizados: '',
+  });
+
+  const [newCardEntregaveis, setNewCardEntregaveis] = useState<Array<{ nome: string; valor: number }>>([
+    { nome: '', valor: 0 }
+  ]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Autocomplete search for clients
+  useEffect(() => {
+    if (!newCardSearch.trim() || newCardMode !== 'search') {
+      setNewCardSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const results = await buscarClientesParaKanban(newCardSearch);
+        setNewCardSuggestions(results || []);
+        setShowDropdown(true);
+      } catch (err) {
+        console.error('Error searching clients:', err);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [newCardSearch, newCardMode]);
+
+  // Click outside to close client search dropdown
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     async function fetchData() {
@@ -234,19 +297,113 @@ export default function KanbanPage() {
     }
   };
 
+  const resetNewCardModal = () => {
+    setNewCardMode('search');
+    setNewCardSearch('');
+    setNewCardSuggestions([]);
+    setNewCardSelectedClient(null);
+    setShowDropdown(false);
+    setNewCardData({
+      nome_artistico: '',
+      nome_pessoal: '',
+      telefone: '',
+      instagram: '',
+      email: '',
+      status_funil: 'Inbound WhatsApp',
+      diag_servico_interesse: '',
+      nome_projeto: '',
+      prazo_entrega: '',
+      sinal_pago: false,
+      terceirizados: '',
+    });
+    setNewCardEntregaveis([{ nome: '', valor: 0 }]);
+  };
+
+  const handleCreateNewCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreatingCard(true);
+
+    try {
+      if (newCardMode === 'search' && !newCardSelectedClient) {
+        alert('Selecione um cliente existente ou mude para a aba "Novo Cliente".');
+        setIsCreatingCard(false);
+        return;
+      }
+
+      if (newCardMode === 'new' && !newCardData.nome_artistico.trim()) {
+        alert('Informe o Nome Artístico / Vulgo do novo cliente.');
+        setIsCreatingCard(false);
+        return;
+      }
+
+      const validEntregaveis = newCardEntregaveis.filter(e => e.nome.trim().length > 0);
+      const servicosStr = validEntregaveis.map(e => e.nome.trim()).join(', ');
+
+      await criarLeadOuReabrirNoKanban({
+        cliente_id: newCardMode === 'search' ? newCardSelectedClient?.id : null,
+        nome_artistico: newCardData.nome_artistico,
+        nome_pessoal: newCardData.nome_pessoal,
+        telefone: newCardData.telefone,
+        instagram: newCardData.instagram,
+        email: newCardData.email,
+        status_funil: newCardData.status_funil,
+        diag_servico_interesse: servicosStr || newCardData.diag_servico_interesse || undefined,
+        entregaveis: validEntregaveis,
+        fechamento: newCardData.status_funil === 'Fechado' ? {
+          nome_projeto: newCardData.nome_projeto || `Projeto - ${validEntregaveis[0]?.nome || 'Novo'}`,
+          prazo_entrega: newCardData.prazo_entrega,
+          sinal_pago: newCardData.sinal_pago,
+          terceirizados: newCardData.terceirizados,
+        } : undefined,
+      });
+
+      setShowNewCardModal(false);
+      resetNewCardModal();
+      
+      // Refresh leads
+      const refreshed = await getClientesKanban();
+      setProjetos(refreshed || []);
+      router.refresh();
+    } catch (err: any) {
+      console.error('Failed to create/reopen card:', err);
+      alert('Erro ao criar card: ' + err.message);
+    } finally {
+      setIsCreatingCard(false);
+    }
+  };
+
   if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Carregando Kanban...</div>;
 
   return (
     <>
       <div style={{ padding: isMobile ? '20px 16px' : '32px 36px', height: '100dvh', display: 'flex', flexDirection: 'column' }} className="fade-up">
         {/* Header */}
-        <div style={{ marginBottom: 28, flexShrink: 0 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
-            <span className="gradient-text">Board Kanban</span>
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-            {isMobile ? 'Deslize para ver as colunas' : 'Arraste os cards para mover projetos entre etapas do funil'}
-          </p>
+        <div style={{ marginBottom: 28, flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
+          <div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
+              <span className="gradient-text">Board Kanban</span>
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+              {isMobile ? 'Deslize para ver as colunas' : 'Arraste os cards para mover projetos entre etapas do funil'}
+            </p>
+          </div>
+
+          <button
+            onClick={() => {
+              resetNewCardModal();
+              setShowNewCardModal(true);
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'var(--accent)', color: '#fff', border: 'none',
+              padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 700,
+              cursor: 'pointer', boxShadow: '0 0 16px var(--accent-glow)',
+              transition: 'all 0.2s', whiteSpace: 'nowrap'
+            }}
+            className="hover:scale-105"
+          >
+            <Plus size={16} /> Novo Lead / Card
+          </button>
         </div>
 
         {/* Mobile swipe hint */}
@@ -345,11 +502,10 @@ export default function KanbanPage() {
                                 </div>
                               </Link>
                               {!isMobile && (
-                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {proj.instagram || proj.email}
-                              </div>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {proj.instagram || proj.email}
+                                </div>
                               )}
-                              {!isMobile && proj.instagram || proj.email}
                             </div>
                           </div>
                           
@@ -632,6 +788,406 @@ export default function KanbanPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* New Lead / Card Modal */}
+      {showNewCardModal && mounted && createPortal(
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowNewCardModal(false); resetNewCardModal(); } }}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(10px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 99999, padding: isMobile ? '12px' : '20px'
+          }}
+        >
+          <div style={{
+            background: 'var(--bg-surface)', border: '1px solid var(--border)',
+            borderRadius: 20, width: '100%', maxWidth: '580px',
+            maxHeight: isMobile ? '92dvh' : '88dvh',
+            overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.6)'
+          }} className="fade-up">
+            {/* Modal Header */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '22px 26px 18px', borderBottom: '1px solid var(--border)',
+              position: 'sticky', top: 0, background: 'var(--bg-surface)', zIndex: 10,
+              borderRadius: '20px 20px 0 0'
+            }}>
+              <div>
+                <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 2 }}>Novo Card no Kanban</h2>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  Inicie uma nova negociação para um cliente existente ou cadastre um novo lead.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setShowNewCardModal(false); resetNewCardModal(); }}
+                style={{ background: 'rgba(255,255,255,0.06)', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', borderRadius: 8, padding: 8, display: 'flex', alignItems: 'center' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateNewCard} style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {/* Toggle Mode: Cliente Existente vs Novo */}
+              <div style={{ display: 'flex', gap: 6, padding: 4, background: 'var(--bg-base)', borderRadius: 10 }}>
+                {([
+                  { mode: 'search' as const, icon: <UserCheck size={14} />, label: 'Cliente Existente' },
+                  { mode: 'new' as const, icon: <UserPlus size={14} />, label: 'Novo Cliente' },
+                ]).map(({ mode, icon, label }) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => {
+                      setNewCardMode(mode);
+                      setNewCardSelectedClient(null);
+                      setNewCardSearch('');
+                    }}
+                    style={{
+                      flex: 1, padding: '8px 12px', borderRadius: 8, fontWeight: 700, fontSize: 12,
+                      cursor: 'pointer', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      transition: 'all 0.2s',
+                      background: newCardMode === mode ? 'var(--bg-surface)' : 'transparent',
+                      color: newCardMode === mode ? 'var(--text-primary)' : 'var(--text-muted)',
+                      boxShadow: newCardMode === mode ? '0 2px 8px rgba(0,0,0,0.3)' : 'none'
+                    }}
+                  >
+                    {icon} {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Cliente Existente Search Autocomplete */}
+              {newCardMode === 'search' && (
+                <div ref={searchContainerRef} style={{ position: 'relative' }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Buscar Cliente Existente *
+                  </label>
+                  {newCardSelectedClient ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 8, background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.4)' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>{newCardSelectedClient.nome_artistico || newCardSelectedClient.nome_pessoal}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                          {newCardSelectedClient.nome_pessoal && `${newCardSelectedClient.nome_pessoal} · `}
+                          {newCardSelectedClient.telefone || newCardSelectedClient.instagram || 'Sem contato extra'}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setNewCardSelectedClient(null); setNewCardSearch(''); }}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ position: 'relative' }}>
+                        <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                        <input
+                          type="text"
+                          placeholder="Buscar por vulgo, nome, telefone ou instagram..."
+                          value={newCardSearch}
+                          onChange={e => { setNewCardSearch(e.target.value); setShowDropdown(true); }}
+                          onFocus={() => newCardSearch && setShowDropdown(true)}
+                          style={{
+                            width: '100%', padding: '10px 14px 10px 36px', borderRadius: 8,
+                            background: 'var(--bg-base)', border: '1px solid var(--border)',
+                            color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box'
+                          }}
+                        />
+                      </div>
+                      {showDropdown && newCardSuggestions.length > 0 && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, zIndex: 100, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+                          {newCardSuggestions.map(c => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setNewCardSelectedClient(c);
+                                setNewCardSearch('');
+                                setShowDropdown(false);
+                              }}
+                              style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 2, borderBottom: '1px solid var(--border)' }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                            >
+                              <span style={{ fontWeight: 700, fontSize: 13 }}>{c.nome_artistico || c.nome_pessoal}</span>
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                {c.nome_pessoal && `${c.nome_pessoal} · `}
+                                {c.telefone || c.instagram || ''}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {showDropdown && newCardSearch && newCardSuggestions.length === 0 && (
+                        <p style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)', paddingLeft: 2 }}>
+                          Nenhum cliente encontrado.{' '}
+                          <button type="button" onClick={() => setNewCardMode('new')} style={{ background: 'none', border: 'none', color: 'var(--accent-light)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>Cadastrar novo?</button>
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Novo Cliente Form */}
+              {newCardMode === 'new' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Nome Artístico / Vulgo *
+                    </label>
+                    <input
+                      required={newCardMode === 'new'}
+                      type="text"
+                      placeholder="Ex: MC Falcão, TrapBoy..."
+                      value={newCardData.nome_artistico}
+                      onChange={e => setNewCardData({ ...newCardData, nome_artistico: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Nome Pessoal
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Nome real"
+                        value={newCardData.nome_pessoal}
+                        onChange={e => setNewCardData({ ...newCardData, nome_pessoal: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        WhatsApp / Telefone
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="(11) 99999-9999"
+                        value={newCardData.telefone}
+                        onChange={e => setNewCardData({ ...newCardData, telefone: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Instagram
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="@usuario"
+                        value={newCardData.instagram}
+                        onChange={e => setNewCardData({ ...newCardData, instagram: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        E-mail
+                      </label>
+                      <input
+                        type="email"
+                        placeholder="cliente@email.com"
+                        value={newCardData.email}
+                        onChange={e => setNewCardData({ ...newCardData, email: e.target.value })}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Coluna Inicial do Funil */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Etapa Inicial no Funil (Coluna) *
+                </label>
+                <select
+                  value={newCardData.status_funil}
+                  onChange={e => setNewCardData({ ...newCardData, status_funil: e.target.value as FunilStatus })}
+                  style={{
+                    width: '100%', padding: '10px 14px', borderRadius: 8,
+                    background: 'var(--bg-base)', border: '1px solid var(--border)',
+                    color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box'
+                  }}
+                >
+                  {COLUMNS.map(col => (
+                    <option key={col.id} value={col.id}>{col.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Entregáveis / Músicas */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Entregáveis / Músicas (Escopo da Negociação)
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNewCardEntregaveis(prev => [...prev, { nome: '', valor: 0 }])}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      background: 'rgba(124,58,237,0.12)', color: 'var(--accent-light)',
+                      border: '1px solid rgba(124,58,237,0.3)', padding: '4px 10px',
+                      borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 700
+                    }}
+                  >
+                    <Plus size={13} /> Adicionar Item
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--bg-base)', padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}>
+                  {newCardEntregaveis.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <Music2 size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                      <input
+                        type="text"
+                        placeholder="Ex: Mixagem Música 1, Beat..."
+                        value={item.nome}
+                        onChange={(e) => {
+                          const updated = [...newCardEntregaveis];
+                          updated[idx] = { ...updated[idx], nome: e.target.value };
+                          setNewCardEntregaveis(updated);
+                        }}
+                        style={{
+                          flex: 2, padding: '7px 10px', borderRadius: 6,
+                          background: 'var(--bg-surface)', border: '1px solid var(--border)',
+                          color: '#fff', outline: 'none', fontSize: 13, minWidth: 0
+                        }}
+                      />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>R$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={item.valor || ''}
+                          onChange={(e) => {
+                            const updated = [...newCardEntregaveis];
+                            updated[idx] = { ...updated[idx], valor: parseFloat(e.target.value) || 0 };
+                            setNewCardEntregaveis(updated);
+                          }}
+                          style={{
+                            width: 90, padding: '7px 8px', borderRadius: 6,
+                            background: 'var(--bg-surface)', border: '1px solid var(--border)',
+                            color: '#fff', outline: 'none', fontSize: 13, textAlign: 'right'
+                          }}
+                        />
+                      </div>
+                      {newCardEntregaveis.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setNewCardEntregaveis(prev => prev.filter((_, i) => i !== idx))}
+                          style={{
+                            background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none',
+                            width: 28, height: 28, borderRadius: 6, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                          }}
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4, fontSize: 13, color: 'var(--text-secondary)' }}>
+                    Total: <strong style={{ color: '#22c55e', marginLeft: 6 }}>R$ {newCardEntregaveis.reduce((acc, v) => acc + (Number(v.valor) || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Se a etapa escolhida for "Fechado", exibe campos extras de encerramento */}
+              {newCardData.status_funil === 'Fechado' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 14, background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#22c55e' }}>
+                    Dados de Fechamento Imediato (Produção)
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4, display: 'block', textTransform: 'uppercase' }}>
+                      Nome do Projeto
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: EP Vol. 1 - Final"
+                      value={newCardData.nome_projeto}
+                      onChange={e => setNewCardData({ ...newCardData, nome_projeto: e.target.value })}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4, display: 'block', textTransform: 'uppercase' }}>
+                        Prazo de Entrega
+                      </label>
+                      <input
+                        type="date"
+                        value={newCardData.prazo_entrega}
+                        onChange={e => setNewCardData({ ...newCardData, prazo_entrega: e.target.value })}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4, display: 'block', textTransform: 'uppercase' }}>
+                        Terceirizados (Split)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Mix 20%"
+                        value={newCardData.terceirizados}
+                        onChange={e => setNewCardData({ ...newCardData, terceirizados: e.target.value })}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: 8, background: 'var(--bg-base)', border: '1px solid var(--border)', color: '#fff', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 4 }}>
+                    <input
+                      type="checkbox"
+                      checked={newCardData.sinal_pago}
+                      onChange={e => setNewCardData({ ...newCardData, sinal_pago: e.target.checked })}
+                      style={{ width: 16, height: 16, accentColor: 'var(--accent)' }}
+                    />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Sinal de Entrada Pago</span>
+                  </label>
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div style={{ display: 'flex', gap: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowNewCardModal(false); resetNewCardModal(); }}
+                  style={{ flex: 1, padding: '11px', borderRadius: 10, background: 'var(--bg-base)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                  disabled={isCreatingCard}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingCard}
+                  style={{
+                    flex: 2, padding: '11px', borderRadius: 10,
+                    background: isCreatingCard ? 'rgba(124,58,237,0.4)' : 'var(--accent)',
+                    color: '#fff', border: 'none', cursor: isCreatingCard ? 'not-allowed' : 'pointer',
+                    fontWeight: 700, fontSize: 13, boxShadow: isCreatingCard ? 'none' : '0 0 16px var(--accent-glow)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                  }}
+                >
+                  {isCreatingCard && <Loader2 size={16} className="animate-spin" />}
+                  {isCreatingCard ? 'Criando Card...' : 'Criar Card no Kanban'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
       )}
     </>
   );

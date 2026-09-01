@@ -705,3 +705,114 @@ export async function createUpsellProject(projectData: Record<string, unknown>) 
   revalidatePath(`/clientes/${projectData.cliente_id}`);
   return data;
 }
+
+export async function buscarClientesParaKanban(query: string) {
+  await requireAuth();
+  const db = await createUserClient();
+  const clean = query.trim();
+  if (!clean) return [];
+
+  const { data, error } = await db
+    .from('clientes')
+    .select('id, nome_artistico, nome_pessoal, telefone, instagram, email, status_funil')
+    .or(`nome_artistico.ilike.%${clean}%,nome_pessoal.ilike.%${clean}%,telefone.ilike.%${clean}%,instagram.ilike.%${clean}%`)
+    .limit(8);
+
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function criarLeadOuReabrirNoKanban(payload: {
+  cliente_id?: string | null;
+  nome_artistico?: string;
+  nome_pessoal?: string;
+  telefone?: string;
+  instagram?: string;
+  email?: string;
+  status_funil: string;
+  diag_servico_interesse?: string;
+  entregaveis?: Array<{ nome: string; valor: number }>;
+  fechamento?: {
+    nome_projeto?: string;
+    prazo_entrega?: string;
+    sinal_pago?: boolean;
+    terceirizados?: string;
+  };
+}) {
+  await requireAuth();
+  const db = await createUserClient();
+
+  let targetClienteId = payload.cliente_id;
+
+  if (targetClienteId) {
+    // Reabrir cliente existente na coluna selecionada
+    const updateData: Record<string, unknown> = {
+      status_funil: payload.status_funil,
+    };
+    if (payload.diag_servico_interesse) {
+      updateData.diag_servico_interesse = payload.diag_servico_interesse;
+    }
+    if (payload.telefone) updateData.telefone = payload.telefone;
+    if (payload.instagram) updateData.instagram = payload.instagram;
+    if (payload.email) updateData.email = payload.email;
+
+    const { error: updateErr } = await db
+      .from('clientes')
+      .update(updateData)
+      .eq('id', targetClienteId);
+
+    if (updateErr) throw new Error(updateErr.message);
+  } else {
+    // Criar novo cliente
+    if (!payload.nome_artistico?.trim()) {
+      throw new Error('Nome Artístico é obrigatório.');
+    }
+
+    const { data: newClient, error: insertErr } = await db
+      .from('clientes')
+      .insert([{
+        nome_artistico: payload.nome_artistico.trim(),
+        nome_pessoal: payload.nome_pessoal?.trim() || null,
+        telefone: payload.telefone?.trim() || null,
+        instagram: payload.instagram?.trim() || null,
+        email: payload.email?.trim() || null,
+        diag_servico_interesse: payload.diag_servico_interesse || null,
+        status_funil: payload.status_funil,
+        data_entrada: new Date().toISOString(),
+      }])
+      .select()
+      .single();
+
+    if (insertErr) throw new Error(insertErr.message);
+    targetClienteId = newClient.id;
+  }
+
+  // Se a coluna escolhida for 'Fechado'
+  if (payload.status_funil === 'Fechado' && targetClienteId) {
+    const entregaveis = payload.entregaveis || [];
+    const servicosStr = entregaveis.map(e => e.nome).filter(Boolean).join(', ') || payload.diag_servico_interesse || 'Projeto';
+    const valorTotal = entregaveis.reduce((acc, e) => acc + (Number(e.valor) || 0), 0);
+    const valoresServicos: Record<string, number> = {};
+    entregaveis.forEach(e => {
+      if (e.nome) valoresServicos[e.nome] = Number(e.valor) || 0;
+    });
+
+    const projectData = {
+      nome: payload.fechamento?.nome_projeto || `Projeto - ${entregaveis[0]?.nome || servicosStr}`,
+      status_producao: 'Definição de Escopo',
+      servicos_fechados: servicosStr,
+      valor_fechado: valorTotal,
+      valores_servicos: valoresServicos,
+      entregaveis: entregaveis,
+      sinal_pago: payload.fechamento?.sinal_pago || false,
+      prazo_entrega: payload.fechamento?.prazo_entrega || null,
+      terceirizados: payload.fechamento?.terceirizados || null,
+    };
+
+    await fecharProjetoNoKanban(targetClienteId, projectData);
+  }
+
+  revalidatePath('/kanban');
+  return { success: true, clienteId: targetClienteId };
+}
+
