@@ -21,7 +21,8 @@ import {
   Disc,
   Tag,
   DollarSign,
-  PlayCircle
+  PlayCircle,
+  Music2
 } from 'lucide-react';
 import { ETAPAS_VENDAS, ETAPAS_PRODUCAO, SERVICOS, getStatusTheme } from '@/constants/workflow';
 import { Cliente, Projeto, ProjetoComCliente, Terceirizado } from '@/types';
@@ -73,9 +74,8 @@ export default function AdminDatabasePage() {
   const [projectStatusFunil, setProjectStatusFunil] = useState<string>('Inbound WhatsApp');
   const [projectStatusProducao, setProjectStatusProducao] = useState<string>('');
 
-  // Pricing State for Modal
-  const [modalServicos, setModalServicos] = useState<string[]>([]);
-  const [modalPrecos, setModalPrecos] = useState<Record<string, number>>({});
+  // Pricing / Entregáveis State for Modal
+  const [modalEntregaveis, setModalEntregaveis] = useState<Array<{ nome: string; valor: number }>>([{ nome: '', valor: 0 }]);
 
   // Terceirizados Integration
   const [terceirizados, setTerceirizados] = useState<any[]>([]);
@@ -149,22 +149,23 @@ export default function AdminDatabasePage() {
   const handleSaveProject = async (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget as HTMLFormElement);
-    const projectData: Partial<Projeto> = Object.fromEntries(formData.entries());
+    const projectData: Partial<Projeto> & { entregaveis?: Array<{ nome: string; valor: number }> } = Object.fromEntries(formData.entries());
     
     // Explicit boolean conversion for checkboxes
     projectData.sinal_pago = formData.get('sinal_pago') === 'on';
     projectData.entrega_paga = formData.get('entrega_paga') === 'on';
     
-    // Pre-calculate total and values with NaN safety
-    const valorTotal = Object.values(modalPrecos).reduce((acc, v) => acc + (Number(v) || 0), 0);
+    // Pre-calculate total and values from modalEntregaveis
+    const valorTotal = modalEntregaveis.reduce((acc, v) => acc + (Number(v.valor) || 0), 0);
     projectData.valor_fechado = valorTotal;
     
     const sanitizedPrecos: Record<string, number> = {};
-    Object.keys(modalPrecos).forEach(k => {
-      sanitizedPrecos[k] = Number(modalPrecos[k]) || 0;
+    modalEntregaveis.forEach(item => {
+      if (item.nome.trim()) sanitizedPrecos[item.nome.trim()] = Number(item.valor) || 0;
     });
     projectData.valores_servicos = sanitizedPrecos;
-    projectData.servicos_fechados = modalServicos.join(', ');
+    projectData.servicos_fechados = modalEntregaveis.map(item => item.nome.trim()).filter(Boolean).join(', ');
+    projectData.entregaveis = modalEntregaveis.filter(item => item.nome.trim().length > 0);
     
     // Clean empty status to null to avoid constraint violations
     if (projectData.status_producao === '') {
@@ -183,7 +184,7 @@ export default function AdminDatabasePage() {
 
     startTransition(async () => {
       try {
-        await saveProjeto(editingProject?.id || null, projectData, splits);
+        await saveProjeto(editingProject?.id || null, projectData as any, splits);
         setShowProjectModal(false);
         setEditingProject(null);
         setSelectedTerceiros([]);
@@ -196,13 +197,32 @@ export default function AdminDatabasePage() {
         alert('Erro ao salvar projeto: ' + handleSupabaseError(error));
       }
     });
-  };  const openEditProject = (project: any) => {
+  };
+
+  const openEditProject = (project: any) => {
     setEditingProject(project);
     setProjectStatusFunil(project.status_funil || 'Inbound WhatsApp');
     setProjectStatusProducao(project.status_producao || '');
-    setModalServicos(project.servicos_fechados ? project.servicos_fechados.split(',').map((s: string) => s.trim()) : []);
-    setModalPrecos(project.valores_servicos || {});
-    // Reset terceiros for editing (although alocation is mostly for NEW)
+    
+    if (Array.isArray(project.projeto_entregaveis) && project.projeto_entregaveis.length > 0) {
+      setModalEntregaveis(project.projeto_entregaveis.map((e: any) => ({
+        nome: e.nome_servico || '',
+        valor: Number(e.valor) || 0
+      })));
+    } else if (project.valores_servicos && typeof project.valores_servicos === 'object' && Object.keys(project.valores_servicos).length > 0) {
+      setModalEntregaveis(Object.entries(project.valores_servicos).map(([k, v]) => ({
+        nome: k,
+        valor: Number(v) || 0
+      })));
+    } else if (project.servicos_fechados) {
+      setModalEntregaveis(project.servicos_fechados.split(',').map((s: string) => ({
+        nome: s.trim(),
+        valor: 0
+      })));
+    } else {
+      setModalEntregaveis([{ nome: '', valor: 0 }]);
+    }
+
     setSelectedTerceiros([]);
     setTerceirosData({});
     setShowProjectModal(true);
@@ -379,8 +399,7 @@ export default function AdminDatabasePage() {
                 setEditingProject(null);
                 setProjectStatusFunil('Inbound WhatsApp');
                 setProjectStatusProducao('');
-                setModalServicos([]);
-                setModalPrecos({});
+                setModalEntregaveis([{ nome: '', valor: 0 }]);
                 setSelectedTerceiros([]);
                 setTerceirosData({});
                 setShowProjectModal(true);
@@ -622,53 +641,75 @@ export default function AdminDatabasePage() {
               </div>
 
               <div style={{ gridColumn: 'span 2' }}>
-                <label className="field-label">Serviços Selecionados</label>
-                <div className="responsive-grid-2" style={{ gap: 10, background: 'var(--bg-base)', padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}>
-                  {SERVICOS.map(servico => (
-                    <label key={servico} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-                      <input 
-                        type="checkbox" 
-                        checked={modalServicos.includes(servico)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setModalServicos(prev => [...prev, servico]);
-                          } else {
-                            setModalServicos(prev => prev.filter(s => s !== servico));
-                            const newPrecos = { ...modalPrecos };
-                            delete newPrecos[servico];
-                            setModalPrecos(newPrecos);
-                          }
-                        }}
-                        style={{ width: 16, height: 16, accentColor: 'var(--accent)' }}
-                      />
-                      {servico}
-                    </label>
-                  ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <label className="field-label" style={{ marginBottom: 0 }}>
+                    Entregáveis (Músicas / Serviços)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setModalEntregaveis(prev => [...prev, { nome: '', valor: 0 }])}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      background: 'rgba(124,58,237,0.12)', color: 'var(--accent-light)',
+                      border: '1px solid rgba(124,58,237,0.3)', padding: '4px 10px',
+                      borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 700
+                    }}
+                  >
+                    <Plus size={13} /> Adicionar
+                  </button>
                 </div>
-              </div>
-
-              {modalServicos.length > 0 && (
-                <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <label className="field-label">Preços Individuais (R$)</label>
-                  {modalServicos.map(servico => (
-                    <div key={servico} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ flex: 1, fontSize: 13, color: 'var(--text-secondary)' }}>{servico}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--bg-base)', padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}>
+                  {modalEntregaveis.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <Music2 size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                       <input
-                        type="number"
-                        step="0.01"
-                         placeholder="0.00"
-                         value={modalPrecos[servico] ?? ''}
-                         onChange={(e) => {
-                           const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                           setModalPrecos(prev => ({ ...prev, [servico]: val }));
-                         }}
+                        type="text"
+                        placeholder="Ex: Mixagem Música 1, Beat..."
+                        value={item.nome}
+                        onChange={(e) => {
+                          const updated = [...modalEntregaveis];
+                          updated[idx] = { ...updated[idx], nome: e.target.value };
+                          setModalEntregaveis(updated);
+                        }}
                         className="field-input"
-                        style={{ width: 120, padding: '8px 12px' }}
+                        style={{ flex: 2, padding: '7px 10px', minWidth: 0 }}
                       />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>R$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={item.valor || ''}
+                          onChange={(e) => {
+                            const updated = [...modalEntregaveis];
+                            updated[idx] = { ...updated[idx], valor: parseFloat(e.target.value) || 0 };
+                            setModalEntregaveis(updated);
+                          }}
+                          className="field-input"
+                          style={{ width: 100, padding: '7px 8px', textAlign: 'right' }}
+                        />
+                      </div>
+                      {modalEntregaveis.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setModalEntregaveis(prev => prev.filter((_, i) => i !== idx))}
+                          style={{
+                            background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none',
+                            width: 28, height: 28, borderRadius: 6, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                          }}
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
                     </div>
                   ))}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4, fontSize: 13, color: 'var(--text-secondary)' }}>
+                    Total: <strong style={{ color: 'var(--green)', marginLeft: 6 }}>R$ {modalEntregaveis.reduce((acc, v) => acc + (Number(v.valor) || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>
+                  </div>
                 </div>
-              )}
+              </div>
               <div>
                 <label className="field-label">Etapa do Funil (Vendas)</label>
                 <select 
@@ -795,7 +836,7 @@ export default function AdminDatabasePage() {
                   <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Lucro do Estúdio (Estimado)</div>
                   {(() => {
                     const totalSplits = selectedTerceiros.reduce((acc, id) => acc + (terceirosData[id]?.valor || 0), 0);
-                    const valorTotalProjeto = Object.values(modalPrecos).reduce((acc, v) => acc + Number(v || 0), 0);
+                    const valorTotalProjeto = modalEntregaveis.reduce((acc, v) => acc + (Number(v.valor) || 0), 0);
                     const lucro = valorTotalProjeto - totalSplits;
                     const isDanger = lucro <= 0;
 
@@ -815,7 +856,7 @@ export default function AdminDatabasePage() {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Mão de Obra: {formatCurrency(selectedTerceiros.reduce((acc, id) => acc + (terceirosData[id]?.valor || 0), 0))}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Venda Bruta: {formatCurrency(Object.values(modalPrecos).reduce((acc, v) => acc + Number(v || 0), 0))}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Venda Bruta: {formatCurrency(modalEntregaveis.reduce((acc, v) => acc + (Number(v.valor) || 0), 0))}</div>
                 </div>
               </div>
 
@@ -825,7 +866,7 @@ export default function AdminDatabasePage() {
                   padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.03)',
                   border: '1px solid var(--border)', color: 'var(--green)', fontWeight: 700, fontSize: 16
                 }}>
-                   {formatCurrency(Object.values(modalPrecos).reduce((acc, v) => acc + Number(v || 0), 0))}
+                   {formatCurrency(modalEntregaveis.reduce((acc, v) => acc + (Number(v.valor) || 0), 0))}
                  </div>
               </div>
 

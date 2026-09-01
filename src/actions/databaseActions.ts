@@ -128,7 +128,7 @@ export async function getProjetos() {
   const db = await createUserClient();
   const { data, error } = await db
     .from('projetos')
-    .select('*, clientes(nome_artistico, nome_pessoal)')
+    .select('*, clientes(nome_artistico, nome_pessoal), projeto_entregaveis(*)')
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return data;
@@ -163,8 +163,6 @@ export async function saveProjeto(id: string | null, projectData: Record<string,
     if (finalStatusFunil === 'Fechado' && (!finalStatusProducao || finalStatusProducao.trim() === '')) {
       finalStatusProducao = 'Definição de Escopo';
     }
-    // Se funil não é Fechado mas o projeto já tem status_producao, mantemos o que veio do form
-    // (pode ser null se o form enviar null explicitamente, o que é válido só se o admin quiser)
   }
 
   const dataToSave = {
@@ -174,9 +172,27 @@ export async function saveProjeto(id: string | null, projectData: Record<string,
     public_token: !id ? crypto.randomUUID() : undefined,
   };
 
+  const entregaveisList = Array.isArray(projectData.entregaveis) && projectData.entregaveis.length > 0
+    ? projectData.entregaveis
+    : null;
+
   if (id) {
     const { error } = await db.from('projetos').update(dataToSave).eq('id', id);
     if (error) throw new Error(error.message);
+
+    // Sync entregaveis on update if provided
+    if (entregaveisList) {
+      // Delete old entregaveis and re-insert new list
+      await db.from('projeto_entregaveis').delete().eq('projeto_id', id);
+      const toInsert = entregaveisList.map((item: any) => ({
+        projeto_id: id,
+        nome_servico: item.nome || item.nome_servico || 'Serviço',
+        valor: Number(item.valor) || 0,
+        status_producao: finalStatusProducao || 'Definição de Escopo',
+      }));
+      const { error: syncError } = await db.from('projeto_entregaveis').insert(toInsert);
+      if (syncError) console.error('Erro ao sincronizar entregaveis no update:', syncError.message);
+    }
   } else {
     const { data: newProject, error: projectError } = await db
       .from('projetos')
@@ -186,8 +202,17 @@ export async function saveProjeto(id: string | null, projectData: Record<string,
 
     if (projectError) throw new Error(projectError.message);
 
-    // Sync projeto_entregaveis if valores_servicos exists
-    if (parsed.valores_servicos && Object.keys(parsed.valores_servicos).length > 0) {
+    // Sync projeto_entregaveis
+    if (entregaveisList) {
+      const toInsert = entregaveisList.map((item: any) => ({
+        projeto_id: newProject.id,
+        nome_servico: item.nome || item.nome_servico || 'Serviço',
+        valor: Number(item.valor) || 0,
+        status_producao: finalStatusProducao || 'Definição de Escopo',
+      }));
+      const { error: entregaveisError } = await db.from('projeto_entregaveis').insert(toInsert);
+      if (entregaveisError) console.error('Erro ao criar entregaveis:', entregaveisError.message);
+    } else if (parsed.valores_servicos && Object.keys(parsed.valores_servicos).length > 0) {
       const entregaveis = Object.entries(parsed.valores_servicos).map(([nome, valor]) => ({
         projeto_id: newProject.id,
         nome_servico: nome,
