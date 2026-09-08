@@ -577,6 +577,8 @@ export async function fecharProjetoNoKanban(clienteId: string, projectData: Reco
   if (cliError) throw new Error(cliError.message);
 
   revalidatePath('/kanban');
+  revalidatePath('/producao');
+  revalidatePath('/clientes');
   return proj;
 }
 
@@ -702,7 +704,18 @@ export async function createUpsellProject(projectData: Record<string, unknown>) 
   const dataWithToken = { ...projectData, public_token: crypto.randomUUID() };
   const { data, error } = await db.from('projetos').insert([dataWithToken]).select().single();
   if (error) throw new Error(error.message);
+
+  if (data?.id) {
+    await db.from('projeto_entregaveis').insert([{
+      projeto_id: data.id,
+      nome_servico: (projectData.servicos_fechados as string) || (projectData.nome as string) || 'Novo Projeto',
+      valor: Number(projectData.valor_fechado) || 0,
+      status_producao: (projectData.status_producao as string) || 'Definição de Escopo',
+    }]);
+  }
+
   revalidatePath(`/clientes/${projectData.cliente_id}`);
+  revalidatePath('/producao');
   return data;
 }
 

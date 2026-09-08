@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Link from 'next/link';
-import { Disc, DollarSign, Calendar, Users, X, CheckCircle, Link as LinkIcon, Check, Settings, ChevronLeft, ChevronRight, ShieldCheck, RotateCcw, Clock } from 'lucide-react';
+import { Disc, DollarSign, Calendar, Users, X, CheckCircle, Link as LinkIcon, Check, Settings, ChevronLeft, ChevronRight, ShieldCheck, RotateCcw, Clock, Folder, FolderOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useGrabScroll } from '@/hooks/useGrabScroll';
 
@@ -61,6 +61,22 @@ export default function ProducaoPage() {
   const [dragging, setDragging] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<ProducaoStatus | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Pastas de projeto agrupadas (chaves: `${colId}-${projetoId}`)
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [allFoldersOpen, setAllFoldersOpen] = useState(false);
+
+  const toggleFolder = (folderKey: string) => {
+    setExpandedFolders((prev) => ({
+      ...prev,
+      [folderKey]: !prev[folderKey],
+    }));
+  };
+
+  const toggleAllFolders = () => {
+    setAllFoldersOpen((prev) => !prev);
+    setExpandedFolders({});
+  };
 
   // Admin Approval
   const [adminApprovingId, setAdminApprovingId] = useState<string | null>(null);
@@ -339,13 +355,37 @@ export default function ProducaoPage() {
     <>
       <div style={{ padding: isMobile ? '20px 16px' : '32px 36px', height: '100dvh', display: 'flex', flexDirection: 'column' }} className="fade-up">
         {/* Header */}
-        <div style={{ marginBottom: 28, flexShrink: 0 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
-            <span className="gradient-text">Studio Tracker</span>
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-            {isMobile ? 'Deslize para ver as colunas' : 'Mova os projetos pelas etapas musicais do estúdio'}
-          </p>
+        <div style={{
+          marginBottom: 28, flexShrink: 0,
+          display: 'flex', alignItems: isMobile ? 'flex-start' : 'center',
+          justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row',
+          gap: 12
+        }}>
+          <div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
+              <span className="gradient-text">Studio Tracker</span>
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+              {isMobile ? 'Deslize para ver as colunas' : 'Mova os projetos pelas etapas musicais do estúdio'}
+            </p>
+          </div>
+
+          <button
+            onClick={toggleAllFolders}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 7,
+              padding: '8px 14px', borderRadius: 10,
+              background: allFoldersOpen ? 'rgba(124,58,237,0.15)' : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${allFoldersOpen ? 'rgba(124,58,237,0.4)' : 'var(--border)'}`,
+              color: allFoldersOpen ? 'var(--accent-light)' : 'var(--text-secondary)',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            title={allFoldersOpen ? 'Recolher todas as pastas de projetos' : 'Expandir todas as pastas de projetos'}
+          >
+            {allFoldersOpen ? <FolderOpen size={15} className="text-accent" /> : <Folder size={15} />}
+            <span>{allFoldersOpen ? 'Recolher Todas as Pastas' : 'Expandir Todas as Pastas'}</span>
+          </button>
         </div>
 
         {/* Mobile swipe hint */}
@@ -404,9 +444,224 @@ export default function ProducaoPage() {
                   </span>
                 </div>
 
-                {/* Cards */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
-                  {cards.map((proj) => {
+                {/* Cards — agrupados por projeto */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
+                  {(() => {
+                    // Agrupa entregáveis pelo projeto pai
+                    const grupos: Record<string, { projetoNome: string; av: string; clienteId: string; items: typeof cards }> = {};
+                    cards.forEach((proj) => {
+                      const projetoParent = proj.projetos || {};
+                      const cliente = projetoParent.clientes;
+                      const projetoId = projetoParent.id || proj.id;
+                      const av = cliente?.nome_artistico || cliente?.nome_pessoal || '?';
+                      if (!grupos[projetoId]) {
+                        grupos[projetoId] = {
+                          projetoNome: projetoParent.nome || av,
+                          av,
+                          clienteId: projetoParent.cliente_id || '',
+                          items: [],
+                        };
+                      }
+                      grupos[projetoId].items.push(proj);
+                    });
+
+                    return Object.entries(grupos).map(([projetoId, grupo]) => {
+                      const isMulti = grupo.items.length > 1;
+                      const grupoKey = `${col.id}-${projetoId}`;
+                      const isExpanded = isMulti ? (allFoldersOpen ? !expandedFolders[grupoKey] : !!expandedFolders[grupoKey]) : true;
+
+                      // Vista compacta da pasta recolhida (economiza espaço no Kanban)
+                      if (isMulti && !isExpanded) {
+                        return (
+                          <div
+                            key={projetoId}
+                            style={{
+                              background: 'var(--bg-card)',
+                              border: '1px solid rgba(124,58,237,0.35)',
+                              borderRadius: 12,
+                              padding: isMobile ? '10px' : '14px',
+                              boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+                              position: 'relative',
+                              overflow: 'hidden',
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            {/* Linha decorativa no topo estilo aba de pasta */}
+                            <div style={{
+                              position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+                              background: 'linear-gradient(90deg, var(--accent), var(--accent-light))',
+                            }} />
+
+                            {/* Topo da pasta compacta */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, marginTop: 2 }}>
+                              <div style={{
+                                width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                                background: `linear-gradient(135deg, ${getAvatarColor(grupo.av)}, ${getAvatarColor(grupo.av)}99)`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontWeight: 700, fontSize: 13, color: '#fff',
+                              }}>
+                                {grupo.av.charAt(0).toUpperCase()}
+                              </div>
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <Link href={`/clientes/${grupo.clienteId}`} style={{ textDecoration: 'none' }}>
+                                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {grupo.av}
+                                  </div>
+                                </Link>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {grupo.projetoNome}
+                                </div>
+                              </div>
+                              <span style={{
+                                fontSize: 10, fontWeight: 700, padding: '2px 7px',
+                                borderRadius: 999, background: 'rgba(124,58,237,0.15)',
+                                color: 'var(--accent-light)', border: '1px solid rgba(124,58,237,0.3)',
+                                display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0
+                              }}>
+                                <Folder size={11} /> {grupo.items.length}
+                              </span>
+                            </div>
+
+                            {/* Lista compacta de entregáveis */}
+                            <div style={{
+                              background: 'var(--bg-base)',
+                              borderRadius: 8,
+                              padding: '6px 8px',
+                              marginBottom: 10,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 4,
+                              border: '1px solid var(--border)',
+                            }}>
+                              {grupo.items.map((ent) => {
+                                const isItemDragging = dragging === ent.id;
+                                return (
+                                  <div
+                                    key={ent.id}
+                                    draggable
+                                    onDragStart={() => handleDragStart(ent.id)}
+                                    onDragEnd={handleDragEnd}
+                                    title="Arraste para mover para outra etapa ou expanda a pasta"
+                                    style={{
+                                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                      fontSize: 11, color: 'var(--text-secondary)',
+                                      padding: '4px 6px', borderRadius: 6,
+                                      background: isItemDragging ? 'rgba(124,58,237,0.15)' : 'transparent',
+                                      cursor: 'grab',
+                                      transition: 'background 0.15s',
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                      <Disc size={12} className="text-accent" style={{ flexShrink: 0 }} />
+                                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)', fontWeight: 500 }}>
+                                        {ent.nome_servico}
+                                      </span>
+                                    </div>
+                                    {ent.prazo_entrega && (
+                                      <span style={{
+                                        fontSize: 9, flexShrink: 0, marginLeft: 6,
+                                        color: isDateLateOrToday(ent.prazo_entrega) ? '#ef4444' : 'var(--text-muted)',
+                                        fontWeight: isDateLateOrToday(ent.prazo_entrega) ? 700 : 400
+                                      }}>
+                                        {formatDate(ent.prazo_entrega)}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Botão para exibir por completo */}
+                            <button
+                              onClick={() => toggleFolder(grupoKey)}
+                              style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 6,
+                                padding: '8px 10px',
+                                borderRadius: 8,
+                                background: 'rgba(124,58,237,0.12)',
+                                border: '1px solid rgba(124,58,237,0.3)',
+                                color: 'var(--accent-light)',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(124,58,237,0.22)';
+                                e.currentTarget.style.borderColor = 'var(--accent)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(124,58,237,0.12)';
+                                e.currentTarget.style.borderColor = 'rgba(124,58,237,0.3)';
+                              }}
+                            >
+                              <FolderOpen size={13} />
+                              <span>Exibir por completo ({grupo.items.length})</span>
+                              <ChevronDown size={13} />
+                            </button>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div
+                          key={projetoId}
+                          style={{
+                            border: isMulti ? '1px solid rgba(124,58,237,0.35)' : 'none',
+                            borderRadius: isMulti ? 12 : 0,
+                            background: isMulti ? 'rgba(124,58,237,0.04)' : 'transparent',
+                            padding: isMulti ? (isMobile ? '10px 8px 8px' : '12px 10px 10px') : 0,
+                            boxShadow: isMulti ? '0 4px 20px rgba(124,58,237,0.08)' : 'none',
+                          }}
+                        >
+                          {/* Cabeçalho do projeto aberto */}
+                          {isMulti && (
+                            <div style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              marginBottom: 10, paddingBottom: 8,
+                              borderBottom: '1px solid rgba(124,58,237,0.2)',
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                <FolderOpen size={14} className="text-accent" style={{ flexShrink: 0 }} />
+                                <Link href={`/clientes/${grupo.clienteId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent-light)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    {grupo.av}
+                                  </span>
+                                </Link>
+                                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                                  • {grupo.items.length} entregáveis
+                                </span>
+                              </div>
+
+                              <button
+                                onClick={() => toggleFolder(grupoKey)}
+                                style={{
+                                  background: 'rgba(124,58,237,0.12)',
+                                  border: '1px solid rgba(124,58,237,0.3)',
+                                  borderRadius: 6,
+                                  padding: '3px 8px',
+                                  color: 'var(--accent-light)',
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4
+                                }}
+                                title="Recolher pasta"
+                              >
+                                <span>Recolher</span>
+                                <ChevronUp size={12} />
+                              </button>
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {grupo.items.map((proj) => {
                     const projetoParent = proj.projetos || {};
                     const cliente = projetoParent.clientes;
                     const isDragging = dragging === proj.id;
@@ -652,6 +907,34 @@ export default function ProducaoPage() {
                       </div>
                     );
                   })}
+                </div>
+
+                {/* Botão sutil para recolher no rodapé da pasta aberta */}
+                {isMulti && (
+                  <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center' }}>
+                    <button
+                      onClick={() => toggleFolder(grupoKey)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        fontSize: 10,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '4px 8px',
+                      }}
+                    >
+                      <ChevronUp size={11} /> Recolher pasta
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          });
+        })()}
 
                   {/* Empty state */}
                   {cards.length === 0 && (
