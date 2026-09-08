@@ -547,7 +547,7 @@ export async function fecharProjetoNoKanban(clienteId: string, projectData: Reco
     }));
     const { error: entregaveisError } = await db.from('projeto_entregaveis').insert(entregaveis);
     if (entregaveisError) {
-      console.error('Erro ao criar entregaveis:', entregaveisError.message);
+      throw new Error('Erro ao criar entregáveis (array): ' + entregaveisError.message);
     }
   } else if (projectData.valores_servicos && typeof projectData.valores_servicos === 'object' && Object.keys(projectData.valores_servicos).length > 0) {
     const entregaveis = Object.entries(projectData.valores_servicos).map(([nome, valor]) => ({
@@ -558,7 +558,7 @@ export async function fecharProjetoNoKanban(clienteId: string, projectData: Reco
     }));
     const { error: entregaveisError } = await db.from('projeto_entregaveis').insert(entregaveis);
     if (entregaveisError) {
-       console.error('Erro ao criar entregaveis:', entregaveisError.message);
+      throw new Error('Erro ao criar entregáveis (valores_servicos): ' + entregaveisError.message);
     }
   } else if (projectData.servicos_fechados || projectData.nome) {
     // Fallback Se não houver valores_servicos, mas houver nome do serviço
@@ -569,7 +569,7 @@ export async function fecharProjetoNoKanban(clienteId: string, projectData: Reco
       status_producao: projectData.status_producao || 'Definição de Escopo',
     }]);
     if (entregaveisError) {
-       console.error('Erro ao criar entregavel fallback:', entregaveisError.message);
+      throw new Error('Erro ao criar entregável fallback: ' + entregaveisError.message);
     }
   }
 
