@@ -4,9 +4,11 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useTransition, use } from 'react';
 import confetti from 'canvas-confetti';
-import { CheckCircle, Clock, Disc, FileText, Lock, Music, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, History, Link as LinkIcon, Plus, Trash2, ExternalLink, CreditCard, Wallet, Mic, Drum, Guitar, Sliders, Radio, Pen, MessageSquare, X, StickyNote, BookOpen, Bell } from 'lucide-react';
+import { CheckCircle, Clock, Disc, FileText, Film, Lock, Music, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, History, Link as LinkIcon, Plus, Trash2, ExternalLink, CreditCard, Wallet, Mic, Drum, Guitar, Sliders, Radio, Pen, MessageSquare, X, StickyNote, BookOpen, Bell, Layers } from 'lucide-react';
+
 import { handleSupabaseError, formatCurrency, formatDate } from '@/lib/utils';
-import { ETAPAS_PRODUCAO, getStatusTheme } from '@/constants/workflow';
+import { ETAPAS_PRODUCAO, getStatusTheme, getServiceCategory } from '@/constants/workflow';
+
 import { aprovarProjeto, registrarSolicitacaoRevisao } from '@/actions/databaseActions';
 import { getPublicProject, adicionarReferenciaProjeto, removerReferenciaProjeto } from '@/actions/publicActions'; // [SEC REFACTOR]
 import { ProjetoComCliente, PontoRevisao, FeedbackRevisao, CategoriaRevisao, PrioridadeRevisao } from '@/types';
@@ -253,6 +255,46 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
   const clienteAprovou = activeEntregavel?.cliente_aprovado === true;
   const ambosAprovaram = currentStatus === 'Aprovado';
 
+  // ─── Detecção do tipo de serviço ativo ─────────────────────────────────────
+  const serviceCategory = getServiceCategory(
+    activeEntregavel?.nome_servico || projeto.servicos_fechados || projeto.tipo_servico
+  );
+  const isAudio = serviceCategory === 'audio';
+  const isVideo = serviceCategory === 'video';
+  const isDesign = serviceCategory === 'design';
+
+  // Strings que mudam conforme o tipo de serviço
+  const serviceCopy = {
+    audio: {
+      vaultLocked: 'Os arquivos finalizados e guias aparecerão aqui automaticamente na etapa de Revisão.',
+      vaultUnlockedReady: 'Cofre Desbloqueado! Seus arquivos de revisão/entrega estão prontos para acesso.',
+      vaultUnlockedWaiting: 'Cofre Desbloqueado! O produtor está preparando o link dos seus arquivos.',
+      vaultAccessBtn: 'Acessar Arquivos',
+      entregavelIcon: <Music size={16} />,
+      loadingText: 'Sincronizando experiência...',
+      loadingIcon: <Music size={24} className="animate-pulse" />,
+    },
+    video: {
+      vaultLocked: 'O videô finalizado e prévias aparecerão aqui automaticamente na etapa de Revisão.',
+      vaultUnlockedReady: 'Cofre Desbloqueado! Suas prévias e entrega de vídeo estão prontas para acesso.',
+      vaultUnlockedWaiting: 'Cofre Desbloqueado! O editor está preparando o link do seu vídeo.',
+      vaultAccessBtn: 'Acessar Vídeo',
+      entregavelIcon: <Film size={16} />,
+      loadingText: 'Sincronizando experiência...',
+      loadingIcon: <Film size={24} className="animate-pulse" />,
+    },
+    design: {
+      vaultLocked: 'As prévias e artes finalizadas aparecerão aqui automaticamente na etapa de Revisão.',
+      vaultUnlockedReady: 'Cofre Desbloqueado! Suas prévias de design estão prontas para visualização.',
+      vaultUnlockedWaiting: 'Cofre Desbloqueado! O designer está preparando o link das suas artes.',
+      vaultAccessBtn: 'Ver Artes',
+      entregavelIcon: <Layers size={16} />,
+      loadingText: 'Carregando projeto...',
+      loadingIcon: <Layers size={24} className="animate-pulse" />,
+    },
+  }[serviceCategory];
+
+
 
   // Revision counters
   const disponiveis = Number(activeEntregavel?.revisoes_disponiveis ?? MAX_REVISOES);
@@ -305,7 +347,12 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
                 whiteSpace: 'nowrap'
               }}
             >
-              <Music size={16} />
+              {(() => {
+                const cat = getServiceCategory(e.nome_servico);
+                if (cat === 'design') return <Layers size={16} />;
+                if (cat === 'video') return <Film size={16} />;
+                return <Music size={16} />;
+              })()}
               {e.nome_servico}
             </button>
           ))}
@@ -623,10 +670,11 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
               <p style={{ fontSize: 13, color: isVaultUnlocked ? 'var(--text-primary)' : 'var(--text-muted)', lineHeight: 1.5, fontWeight: isVaultUnlocked ? 500 : 400 }}>
                 {isVaultUnlocked 
                   ? (activeEntregavel?.link_arquivos 
-                      ? "Cofre Desbloqueado! Seus arquivos de revisão/entrega estão prontos para acesso."
-                      : "Cofre Desbloqueado! O produtor está preparando o link dos seus arquivos.")
-                  : "Os arquivos finalizados e guias aparecerão aqui automaticamente na etapa de Revisão."
+                      ? serviceCopy.vaultUnlockedReady
+                      : serviceCopy.vaultUnlockedWaiting)
+                  : serviceCopy.vaultLocked
                 }
+
               </p>
             </div>
             {isVaultUnlocked && activeEntregavel?.link_arquivos ? (
@@ -647,7 +695,7 @@ export default function PublicPortalPage({ params }: { params: Promise<{ token: 
                     border: 'none'
                   }}
                 >
-                  Acessar Arquivos
+                  {serviceCopy.vaultAccessBtn}
                 </button>
               </a>
             ) : (

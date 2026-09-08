@@ -1,13 +1,55 @@
 export const SERVICOS = [
+  // Áudio
   'Captação de voz',
   'Beatmaking',
   'Mixagem e Masterização',
+  // Vídeo
   'Edição de Videoclipe',
   'Lyric Video',
-  'Visualizer'
+  'Visualizer',
+  // Design
+  'Branding',
+  'Direção de Arte Digital',
+  'Social Media',
+  'Design Ad Assets',
 ] as const;
 
 export type ServicoType = typeof SERVICOS[number];
+
+// ─── Categorias de serviço ──────────────────────────────────────────────────
+
+const SERVICOS_AUDIO: readonly string[] = [
+  'Captação de voz',
+  'Beatmaking',
+  'Mixagem e Masterização',
+];
+
+const SERVICOS_VIDEO: readonly string[] = [
+  'Edição de Videoclipe',
+  'Lyric Video',
+  'Visualizer',
+];
+
+const SERVICOS_DESIGN: readonly string[] = [
+  'Branding',
+  'Direção de Arte Digital',
+  'Social Media',
+  'Design Ad Assets',
+];
+
+export type ServiceCategory = 'audio' | 'video' | 'design';
+
+/**
+ * Retorna a categoria do serviço com base no nome.
+ * Fallback: 'audio' para serviços não reconhecidos.
+ */
+export function getServiceCategory(servico: string | null | undefined): ServiceCategory {
+  if (!servico) return 'audio';
+  const s = servico.toLowerCase();
+  if (SERVICOS_DESIGN.some(d => s.includes(d.toLowerCase()))) return 'design';
+  if (SERVICOS_VIDEO.some(v => s.includes(v.toLowerCase()))) return 'video';
+  return 'audio';
+}
 
 export const ETAPAS_VENDAS = [
   'Inbound WhatsApp',
